@@ -1,6 +1,6 @@
 const WhatsAppButton = () => {
   const phoneNumber = "5517992176868";
-  const message = "Olá! Gostaria de solicitar um orçamento.";
+  const message = "Olá! Vim pelo site da Hidroconex e gostaria de solicitar um orçamento.";
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 
   return (

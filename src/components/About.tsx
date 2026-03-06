@@ -2,7 +2,7 @@ import { Factory, Users, Target, TrendingUp } from "lucide-react";
 
 const stats = [
   { icon: Factory, value: "100%", label: "Fabricação Própria" },
-  { icon: Users, value: "+500", label: "Clientes Atendidos" },
+  { icon: Users, value: "+150", label: "Clientes Atendidos" },
   { icon: Target, value: "Precisão", label: "Em Cada Peça" },
   { icon: TrendingUp, value: "Qualidade", label: "Comprovada" },
 ];
@@ -26,18 +26,17 @@ const About = () => {
               <p>
                 A <strong className="text-foreground">Hidroconex Indústria e Comércio Ltda</strong> é
                 uma fabricante estabelecida na Região de São José do Rio Preto há 14 anos,
-                especializada na produção de componentes industriais.
+                especializada na produção de conexões e componentes de aço.
               </p>
               <p>
-                Com uma equipe técnica qualificada e equipamentos modernos,
-                desenvolvemos soluções que atendem às mais rigorosas especificações
-                do mercado industrial. Nossa missão é fornecer produtos que garantam
-                a segurança e eficiência das operações de nossos clientes.
+                Com uma equipe qualificada e equipamentos modernos, desenvolvemos soluções
+                que atendem às especificações do mercado industrial. Nossa missão é fornecer
+                produtos que garantam a segurança e eficiência das operações de nossos clientes.
               </p>
               <p>
                 Cada peça fabricada pela Hidroconex passa por controle de qualidade,
-                assegurando que nossos clientes recebam produtos com a
-                durabilidade e performance que o setor industrial exige.
+                assegurando que nossos clientes recebam produtos com a durabilidade e
+                performance que o setor industrial exige.
               </p>
             </div>
 
@@ -49,7 +48,7 @@ const About = () => {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary" />
-                <span className="text-sm text-foreground">Aço Inox</span>
+                <span className="text-sm text-foreground">Atendimento com Excelência</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary" />
@@ -57,7 +56,7 @@ const About = () => {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary" />
-                <span className="text-sm text-foreground">Entrega Rápida</span>
+                <span className="text-sm text-foreground">Entrega Via Transportadora</span>
               </div>
             </div>
           </div>

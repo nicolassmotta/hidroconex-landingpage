@@ -90,7 +90,9 @@ const Contact = () => {
               <div>
                 <h3 className="font-bold text-foreground mb-1">Telefone</h3>
                 <a
-                  href="tel:+5517997726171"
+                  href="https://wa.me/5517997726171?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20Hidroconex!"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="text-muted-foreground hover:text-primary transition-colors"
                 >
                   (17) 99772-6171

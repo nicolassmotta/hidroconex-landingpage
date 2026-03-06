@@ -21,7 +21,7 @@ const Footer = () => {
             </p>
             <div className="flex gap-4">
               <a
-                href="https://wa.me/5517992176868"
+                href="https://wa.me/5517992176868?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20Hidroconex!"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center hover:bg-primary/30 transition-colors"
@@ -90,7 +90,7 @@ const Footer = () => {
               © {currentYear} Hidroconex Indústria e Comércio Ltda. Todos os direitos reservados.
             </p>
             <p className="text-secondary-foreground/50 text-sm">
-              CNPJ: XX.XXX.XXX/0001-XX
+              CNPJ: 14.395.617/0001-68
             </p>
           </div>
         </div>
