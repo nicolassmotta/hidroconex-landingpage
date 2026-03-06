@@ -114,9 +114,9 @@ const ProductCard = ({ product, index, onClick }: { product: { title: string, de
         {product.description}
       </p>
 
-      <div className="mt-4 flex items-center text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="mt-4 flex items-center text-muted-foreground group-hover:text-primary font-medium transition-colors duration-300">
         <span className="text-sm">Ver Catálogo Detalhado</span>
-        <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+        <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
       </div>
     </div>
   </div>
