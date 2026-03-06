@@ -9,13 +9,13 @@ const __dirname = path.dirname(__filename);
 const ASSETS_DIR = path.resolve(__dirname, '../src/assets/Products');
 const OUTPUT_FILE = path.resolve(__dirname, '../src/data/catalog.ts');
 
-// Map main category folder names to category ID prefixes
+// Mapeia os nomes reais das pastas principais (ex: 'Reservatórios Metálicos') para os prefixos curtos (ex: 'rm')
 const CATEGORY_PREFIX_MAP = {
   'Reservatórios Metálicos': 'rm',
   'Tanques Subterrâneos': 'ts',
 };
 
-// Map subcategory folder names to category ID slugs
+// Mapeia os nomes das subpastas (ex: 'Luvas') para os identificadores finais das URLs
 const SUBCATEGORY_SLUG_MAP = {
   'Luvas': 'luvas',
   'Niples': 'niples',
@@ -27,16 +27,16 @@ const SUBCATEGORY_SLUG_MAP = {
 function formatModelName(folderName) {
   let name = folderName;
 
-  // Rule 1: Remove leading number pattern (e.g. "1. ", "3. ", "7.1 ", "11. ")
+  // Regra 1: Remove numerações iniciais em arquivos ou pastas (ex: "1. Luva", "7.1 Niple")
   name = name.replace(/^\d+\.?\d*\s*/, '');
 
-  // Rule 2: Replace trailing underscore with inch symbol (e.g. "Luva 3-8_" → "Luva 3-8\"")
+  // Regra 2: Converte traços solitários finais em aspas de polegada (ex: "Luva 3-8_" → "Luva 3-8\"")
   name = name.replace(/_\s*$/, '"');
 
-  // Rule 3: Replace dashes between digits with slashes (e.g. "3-8" → "3/8")
+  // Regra 3: Converte traços separando números por barras fracionárias (ex: "3-8" → "3/8")
   name = name.replace(/(\d)-(\d)/g, '$1/$2');
 
-  // Rule 4: Replace remaining interior underscores with inch symbol
+  // Regra 4: Troca underscores restantes soltos por aspas de polegada para finalizar o formato
   name = name.replace(/_/g, '"');
 
   return name.trim();
@@ -45,9 +45,10 @@ function formatModelName(folderName) {
 function generateCatalog() {
   console.log('Scanning directories in: ' + ASSETS_DIR);
 
+  // Varre a pasta de Assets do projeto atrás de todo e qualquer arquivo PNG
   const files = globSync(`${ASSETS_DIR}/**/*.png`);
 
-  // Keep one image per model subfolder (the first PNG found)
+  // Filtro de repetição: Mantém apenas 1 imagem representativa por pasta de modelo
   const processedModels = new Set();
   const catalogItems = [];
 
@@ -55,7 +56,7 @@ function generateCatalog() {
     const pathParts = file.split(path.sep);
     const productsIndex = pathParts.findIndex(p => p === 'Products');
 
-    // Must have: Products / [Main Category] / [Sub Category] / [Model Folder] / [file]
+    // A estrutura deve ser rigorosamente: Products / [Categoria] / [Subcategoria] / [Pasta Modelo] / [imagem.png]
     if (pathParts.length >= productsIndex + 5) {
       const mainCategory = pathParts[productsIndex + 1];
       const subCategory = pathParts[productsIndex + 2];
@@ -76,7 +77,8 @@ function generateCatalog() {
       if (!processedModels.has(uniqueKey)) {
         processedModels.add(uniqueKey);
 
-        // Path relative to project root for import.meta.glob
+        // Corta o caminho absoluto da máquina para criar uma rota relativa a partir de "/src/" 
+        // Isso é vital para que o import dinâmico do Vite funcione na nuvem
         const relativeToSrc = file.substring(file.indexOf('/src/assets/'));
 
         catalogItems.push({
@@ -85,7 +87,7 @@ function generateCatalog() {
           mainCategory,
           subCategory,
           model: modelName,
-          // This path will be used with import.meta.glob in the component
+          // IMPORTANTE: Esse relative path será lido e empacotado pelo react/vite durante a renderização estática
           importPath: '.' + relativeToSrc,
           description: '',
         });
@@ -93,7 +95,7 @@ function generateCatalog() {
     }
   });
 
-  // Sort by main category, subcategory, then model name
+  // Ordena os itens alfabeticamente visando manter o Array do Catálogo perfeitamente alinhado por Categoria -> Modelo
   catalogItems.sort((a, b) => {
     if (a.mainCategory !== b.mainCategory) return a.mainCategory.localeCompare(b.mainCategory);
     if (a.subCategory !== b.subCategory) return a.subCategory.localeCompare(b.subCategory);

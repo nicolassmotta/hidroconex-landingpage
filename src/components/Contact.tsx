@@ -15,19 +15,21 @@ const Contact = () => {
   useEffect(() => {
     const checkStatus = () => {
       const now = new Date();
-      // Convert to Brasilia Timezone
+      // Converte o horário atual para o fuso horário de Brasília (evita bugs se o usuário estiver em outro país)
       const brTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-      const day = brTime.getDay(); // 0 = Sunday, 1 = Monday, ..., 5 = Friday, 6 = Saturday
+      const day = brTime.getDay(); // 0 = Domingo, 1 = Segunda, ..., 5 = Sexta, 6 = Sábado
+      
+      // Converte a hora atual em minutos totais para facilitar a comparação (ex: 07:30 = 7 * 60 + 30 = 450)
       const timeInMinutes = brTime.getHours() * 60 + brTime.getMinutes();
 
       let open = false;
 
-      // Monday to Friday
+      // Regra de funcionamento: Segunda a Sexta-feira
       if (day >= 1 && day <= 5) {
-        // Morning: 07:30 (450) to 11:30 (690)
+        // Período da Manhã: 07:30 (450 min) até 11:30 (690 min)
         const isMorningOpen = timeInMinutes >= 450 && timeInMinutes < 690;
 
-        // Afternoon: 12:42 (762) to either 17:00 (1020) for Mon-Thu, or 16:00 (960) for Fri
+        // Período da Tarde: 12:42 (762 min) até às 17:00 (1020 min) para Seg-Qui, ou 16:00 (960 min) para Sexta
         const afternoonClose = day === 5 ? 960 : 1020;
         const isAfternoonOpen = timeInMinutes >= 762 && timeInMinutes < afternoonClose;
 
@@ -40,7 +42,7 @@ const Contact = () => {
     };
 
     checkStatus();
-    // Update every minute to keep it real-time
+    // Atualiza o status a cada 60 segundos para refletir mudanças em tempo real sem precisar recarregar a página
     const interval = setInterval(checkStatus, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -176,8 +178,10 @@ const Contact = () => {
                 setIsSubmitting(true);
                 setSubmitStatus(null);
 
+                // Captura todos os dados preenchidos no formulário (name, email, phone, message)
                 const formData = new FormData(e.currentTarget);
-                // Required by Web3Forms
+                
+                // Variável de chave de acesso exigida pela API do Web3Forms (A chave real está segura no arquivo .env)
                 formData.append("access_key", import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || "");
 
                 try {

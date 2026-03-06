@@ -4,27 +4,28 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ArrowRight } from "lucide-react";
 import { catalogData } from "@/data/catalog";
 
-// Pre-load all product images at build time via Vite's import.meta.glob
-// This is the ONLY correct way to reference images inside src/assets
+// Carrega as imagens dos produtos de forma estática no momento do "build" usando a ferramenta do Vite
+// Essa é a maneira recomendada para forçar o empacotador a incluir os arquivos da pasta /src/assets no projeto final
 const productImages = import.meta.glob(
   '/src/assets/Products/**/*.png',
   { eager: true, import: 'default' }
 ) as Record<string, string>;
 
+// Função utilitária para buscar e resolver o caminho real da imagem após o build
 function resolveImage(importPath: string): string {
   const key = importPath.replace(/^\./, '');
   let url = productImages[key];
   
   if (!url) {
-    // Fallback 1: Try Unicode Normalization Form C (often needed for accents like 'ó')
+    // Alternativa 1: Tenta normalização Unicode Form C (necessário para caracteres acentuados funcionarem no Mac/Linux vs Windows)
     url = productImages[key.normalize('NFC')];
   }
   if (!url) {
-    // Fallback 2: Try Unicode Normalization Form D
+    // Alternativa 2: Tenta normalização Unicode Form D
     url = productImages[key.normalize('NFD')];
   }
   if (!url) {
-    // Fallback 3: Search by filename ignoring path
+    // Alternativa 3: Se o caminho falhar, tenta buscar a imagem apenas pelo último nome do arquivo ignorando a pasta
     const filename = key.split('/').pop();
     if (filename) {
       const foundKey = Object.keys(productImages).find(k => k.endsWith('/' + filename));
@@ -36,7 +37,7 @@ function resolveImage(importPath: string): string {
 }
 
 
-// Helper: pick the first catalog image for a given categoryId as the thumbnail
+// Função auxiliar: Pega a primeira imagem de um determinado catálogo para usar como "Capa" ou miniatura da categoria
 function getCategoryThumbnail(categoryId: string): string {
   const item = catalogData.find(i => i.categoryId === categoryId);
   return item ? resolveImage(item.importPath) : '';
