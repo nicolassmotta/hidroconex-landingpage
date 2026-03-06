@@ -24,11 +24,10 @@ const Header = () => {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
           ? "bg-card/95 backdrop-blur-md shadow-lg"
           : "bg-transparent"
-      }`}
+        }`}
     >
       <div className="section-container">
         <div className="flex items-center justify-between h-20">
@@ -47,11 +46,10 @@ const Header = () => {
               <a
                 key={item.label}
                 href={item.href}
-                className={`font-medium transition-colors duration-200 ${
-                  isScrolled
+                className={`font-medium transition-colors duration-200 ${isScrolled
                     ? "text-foreground/80 hover:text-primary"
                     : "text-secondary-foreground/90 hover:text-primary"
-                }`}
+                  }`}
               >
                 {item.label}
               </a>

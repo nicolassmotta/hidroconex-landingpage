@@ -4,28 +4,28 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ArrowRight } from "lucide-react";
 import { catalogData } from "@/data/catalog";
 
-// Carrega as imagens dos produtos de forma estática no momento do "build" usando a ferramenta do Vite
-// Essa é a maneira recomendada para forçar o empacotador a incluir os arquivos da pasta /src/assets no projeto final
+// Load product images statically at build time using Vite's glob import
+// This is the recommended way to force the bundler to include files from /src/assets in the final build
 const productImages = import.meta.glob(
   '/src/assets/Products/**/*.png',
   { eager: true, import: 'default' }
 ) as Record<string, string>;
 
-// Função utilitária para buscar e resolver o caminho real da imagem após o build
+// Utility function to fetch and resolve the actual image path after the build
 function resolveImage(importPath: string): string {
   const key = importPath.replace(/^\./, '');
   let url = productImages[key];
-  
+
   if (!url) {
-    // Alternativa 1: Tenta normalização Unicode Form C (necessário para caracteres acentuados funcionarem no Mac/Linux vs Windows)
+    // Fallback 1: Try Unicode Form C normalization (required for accented characters on Mac/Linux vs Windows)
     url = productImages[key.normalize('NFC')];
   }
   if (!url) {
-    // Alternativa 2: Tenta normalização Unicode Form D
+    // Fallback 2: Try Unicode Form D normalization
     url = productImages[key.normalize('NFD')];
   }
   if (!url) {
-    // Alternativa 3: Se o caminho falhar, tenta buscar a imagem apenas pelo último nome do arquivo ignorando a pasta
+    // Fallback 3: If the path fails, try to fetch the image just by the last file name ignoring the folder
     const filename = key.split('/').pop();
     if (filename) {
       const foundKey = Object.keys(productImages).find(k => k.endsWith('/' + filename));
@@ -37,7 +37,7 @@ function resolveImage(importPath: string): string {
 }
 
 
-// Função auxiliar: Pega a primeira imagem de um determinado catálogo para usar como "Capa" ou miniatura da categoria
+// Helper function: Gets the first image of a specific catalog to use as "Cover" or category thumbnail
 function getCategoryThumbnail(categoryId: string): string {
   const item = catalogData.find(i => i.categoryId === categoryId);
   return item ? resolveImage(item.importPath) : '';

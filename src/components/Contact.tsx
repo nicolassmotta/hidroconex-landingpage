@@ -1,5 +1,6 @@
 import { MapPin, Phone, Clock, Mail } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 
 const horariosAgrupados = [
   { dia: "Segunda a Quinta", horas: "07:30 ás 11:30 | 12:42 ás 17:00" },
@@ -11,25 +12,27 @@ const Contact = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<HCaptcha>(null);
 
   useEffect(() => {
     const checkStatus = () => {
       const now = new Date();
-      // Converte o horário atual para o fuso horário de Brasília (evita bugs se o usuário estiver em outro país)
+      // Convert current time to Brasilia timezone (prevents bugs if user is in another country)
       const brTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-      const day = brTime.getDay(); // 0 = Domingo, 1 = Segunda, ..., 5 = Sexta, 6 = Sábado
-      
-      // Converte a hora atual em minutos totais para facilitar a comparação (ex: 07:30 = 7 * 60 + 30 = 450)
+      const day = brTime.getDay(); // 0 = Sunday, 1 = Monday, ..., 5 = Friday, 6 = Saturday
+
+      // Convert current time in total minutes for easy comparison (ex: 07:30 = 7 * 60 + 30 = 450)
       const timeInMinutes = brTime.getHours() * 60 + brTime.getMinutes();
 
       let open = false;
 
-      // Regra de funcionamento: Segunda a Sexta-feira
+      // Operating rules: Monday to Friday
       if (day >= 1 && day <= 5) {
-        // Período da Manhã: 07:30 (450 min) até 11:30 (690 min)
+        // Morning Period: 07:30 (450 min) to 11:30 (690 min)
         const isMorningOpen = timeInMinutes >= 450 && timeInMinutes < 690;
 
-        // Período da Tarde: 12:42 (762 min) até às 17:00 (1020 min) para Seg-Qui, ou 16:00 (960 min) para Sexta
+        // Afternoon Period: 12:42 (762 min) to 17:00 (1020 min) for Mon-Thu, or 16:00 (960 min) for Friday
         const afternoonClose = day === 5 ? 960 : 1020;
         const isAfternoonOpen = timeInMinutes >= 762 && timeInMinutes < afternoonClose;
 
@@ -42,7 +45,7 @@ const Contact = () => {
     };
 
     checkStatus();
-    // Atualiza o status a cada 60 segundos para refletir mudanças em tempo real sem precisar recarregar a página
+    // Update status every 60 seconds to reflect real-time changes without reloading the page
     const interval = setInterval(checkStatus, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -100,7 +103,7 @@ const Contact = () => {
               </div>
             </div>
 
-            {/* Card de Horários */}
+            {/* Business Hours Card */}
             <div className="card-industrial p-6 flex items-start gap-4">
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Clock className="w-6 h-6 text-primary" />
@@ -111,15 +114,15 @@ const Contact = () => {
                 <div className="space-y-3 w-full text-sm">
                   {horariosAgrupados.map((item, index) => (
                     <div key={index} className="flex items-center group">
-                      {/* Nome do Dia */}
+                      {/* Day Name */}
                       <span className="text-muted-foreground whitespace-nowrap">
                         {item.dia}
                       </span>
 
-                      {/* Linha guia sutil (opcional, mas ajuda muito no visual) */}
+                      {/* Subtle guide line (optional, but helps visually) */}
                       <div className="mx-2 flex-grow border-b border-dotted border-muted/30 mb-1"></div>
 
-                      {/* Horários */}
+                      {/* Hours */}
                       <span className={`
               whitespace-nowrap font-medium
               ${item.horas === "Fechado" ? "text-muted-foreground/60 italic" : "text-foreground"}
@@ -130,7 +133,7 @@ const Contact = () => {
                   ))}
                 </div>
 
-                {/* Indicador de Status Real-time */}
+                {/* Real-time Status Indicator */}
                 {isOpen ? (
                   <div className="mt-4 pt-4 border-t border-muted/20 flex items-center gap-2 animate-fade-in">
                     <span className="relative flex h-2 w-2">
@@ -179,28 +182,44 @@ const Contact = () => {
                 e.preventDefault();
                 setIsSubmitting(true);
                 setSubmitStatus(null);
-
-                // Captura todos os dados preenchidos no formulário (name, email, phone, message)
-                const formData = new FormData(e.currentTarget);
                 
-                // Variável de chave de acesso exigida pela API do Web3Forms (A chave real está segura no arquivo .env)
-                formData.append("access_key", import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || "");
+                if (!captchaToken) {
+                  setSubmitStatus({ type: 'error', message: 'Por favor, preencha o captcha antes de enviar.' });
+                  setIsSubmitting(false);
+                  return;
+                }
+
+                // Prepare form data as JSON
+                const formData = new FormData(e.currentTarget);
+                const objectData = Object.fromEntries(formData);
+                objectData.access_key = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || "";
+                objectData["h-captcha-response"] = captchaToken;
+                const json = JSON.stringify(objectData);
 
                 try {
                   const res = await fetch("https://api.web3forms.com/submit", {
                     method: "POST",
-                    body: formData
+                    headers: {
+                      "Content-Type": "application/json",
+                      Accept: "application/json",
+                    },
+                    body: json
                   });
 
                   const data = await res.json();
+                  console.log("Web3Forms Response:", data);
 
                   if (data.success) {
                     setSubmitStatus({ type: 'success', message: 'Sua solicitação foi enviada com sucesso! Entraremos em contato em breve.' });
                     (e.target as HTMLFormElement).reset();
+                    setCaptchaToken(null);
+                    captchaRef.current?.resetCaptcha();
                   } else {
-                    setSubmitStatus({ type: 'error', message: 'Ocorreu um erro ao enviar. Por favor, tente novamente ou contate-nos por WhatsApp.' });
+                    console.error("Web3Forms Error:", data);
+                    setSubmitStatus({ type: 'error', message: data.message || 'Ocorreu um erro ao enviar. Por favor, tente novamente ou contate-nos por WhatsApp.' });
                   }
                 } catch (error) {
+                  console.error("Network Error:", error);
                   setSubmitStatus({ type: 'error', message: 'Erro de conexão. Verifique sua internet e tente novamente.' });
                 } finally {
                   setIsSubmitting(false);
@@ -270,7 +289,13 @@ const Contact = () => {
                 </div>
               )}
 
-              <div className="h-captcha" data-captcha="true"></div>
+              <HCaptcha
+                ref={captchaRef}
+                sitekey="50b2fe65-b00b-4b9e-ad62-3ba471098be2"
+                reCaptchaCompat={false}
+                onVerify={(token) => setCaptchaToken(token)}
+                onExpire={() => setCaptchaToken(null)}
+              />
 
               <button
                 type="submit"
