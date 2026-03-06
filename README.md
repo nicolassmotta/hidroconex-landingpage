@@ -1,73 +1,67 @@
-# Welcome to your Lovable project
+# Hidroconex - Landing Page Oficial
 
-## Project info
+Bem-vindo ao repositório do projeto **Hidroconex**, uma landing page moderna e responsiva desenvolvida para apresentar o catálogo de produtos, história e informações de contato da fabricante de conexões industriais.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 🚀 Tecnologias Utilizadas
 
-## How can I edit this code?
+Este projeto foi construído utilizando as ferramentas mais modernas do ecossistema front-end:
 
-There are several ways of editing your application.
+- **React + Vite:** Para uma renderização rápida e um ambiente de desenvolvimento instantâneo.
+- **TypeScript:** Garantindo tipagem estática, código seguro e previsível.
+- **Tailwind CSS:** Para estilização altamente customizável e responsiva.
+- **Shadcn UI + Radix:** Componentes acessíveis e lindamente projetados de forma nativa.
+- **Web3Forms + hCaptcha:** Para um formulário de contato funcional, seguro e protegido contra spam, enviado diretamente para o seu e-mail, sem a necessidade de um backend próprio.
+- **Node.js (Scripts):** Utilizado para gerar dinamicamente o catálogo dos produtos à partir das subpastas de imagens.
 
-**Use Lovable**
+## 📦 Estrutura do Projeto
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- `/src/assets/Products`: Contém todas as imagens dos produtos com fundo transparente.
+- `/src/components`: Componentes da interface como `Hero`, `Products`, `Contact`, `Location`, etc.
+- `/src/data/catalog.ts`: Dados automáticos do catálogo, gerados a partir do script Node.js.
+- `/scripts/generateCatalog.js`: Script responsável por ler os diretórios de produtos e gerar/atualizar o catálogo dinâmico.
 
-Changes made via Lovable will be committed automatically to this repo.
+## ⚙️ Como executar rodar o projeto localmente
 
-**Use your preferred IDE**
+Siga os passos abaixo para rodar o projeto na sua máquina:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. **Clone o repositório:**
+   ```bash
+   git clone <URL_DO_SEU_REPOSITORIO>
+   ```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+2. **Navegue até a pasta:**
+   ```bash
+   cd hidroconex-launchpad
+   ```
 
-Follow these steps:
+3. **Instale as dependências:**
+   Você pode usar npm, pnpm ou bun. (Exemplo com npm)
+   ```bash
+   npm install
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+4. **Configuração de Variáveis de Ambiente:**
+   Crie um arquivo chamado `.env` na raiz do projeto (este arquivo não será enviado para o GitHub, pois está no `.gitignore`).
+   Dentro dele, adicione a sua chave do Web3Forms para que o formulário de contato funcione:
+   ```env
+   VITE_WEB3FORMS_ACCESS_KEY="coloque_sua_chave_aqui"
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+5. **Inicie o Servidor de Desenvolvimento:**
+   ```bash
+   npm run dev
+   ```
+   Acesse no navegador: `http://localhost:8080` (a porta pode variar dependendo da configuração automática do Vite).
 
-# Step 3: Install the necessary dependencies.
-npm i
+## 🛠️ Como atualizar o Catálogo de Produtos
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+Se você adicionar novas fotos dentro de `src/assets/Products/`, certifique-se de executar o script de geração para atualizar o array `src/data/catalog.ts`:
+
+```bash
+node scripts/generateCatalog.js
 ```
+*Isso lerá todas as novas pastas de modelos e automaticamente formatará os títulos para o site.*
 
-**Edit a file directly in GitHub**
+## 🔒 Segurança
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Sua chave da API do formulário de contato fica armazenada com segurança na variável contida no arquivo `.env`. Graças à configuração do `.gitignore`, suas chaves de API nunca serão expostas publicamente no repositório.
