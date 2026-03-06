@@ -9,7 +9,7 @@ Este projeto foi construído utilizando as ferramentas mais modernas do ecossist
 - **React + Vite:** Para uma renderização rápida e um ambiente de desenvolvimento instantâneo.
 - **TypeScript:** Garantindo tipagem estática, código seguro e previsível.
 - **Tailwind CSS:** Para estilização altamente customizável e responsiva.
-- **Shadcn UI + Radix:** Componentes acessíveis e lindamente projetados de forma nativa.
+- **Shadcn UI + Radix:** Componentes acessíveis e projetados de forma nativa.
 - **Web3Forms + hCaptcha:** Para um formulário de contato funcional, seguro e protegido contra spam, enviado diretamente para o seu e-mail, sem a necessidade de um backend próprio.
 - **Node.js (Scripts):** Utilizado para gerar dinamicamente o catálogo dos produtos à partir das subpastas de imagens.
 
@@ -41,7 +41,7 @@ Siga os passos abaixo para rodar o projeto na sua máquina:
    ```
 
 4. **Configuração de Variáveis de Ambiente:**
-   Crie um arquivo chamado `.env` na raiz do projeto (este arquivo não será enviado para o GitHub, pois está no `.gitignore`).
+   Crie um arquivo chamado `.env` na raiz do projeto.
    Dentro dele, adicione a sua chave do Web3Forms para que o formulário de contato funcione:
    ```env
    VITE_WEB3FORMS_ACCESS_KEY="coloque_sua_chave_aqui"
@@ -61,7 +61,3 @@ Se você adicionar novas fotos dentro de `src/assets/Products/`, certifique-se d
 node scripts/generateCatalog.js
 ```
 *Isso lerá todas as novas pastas de modelos e automaticamente formatará os títulos para o site.*
-
-## 🔒 Segurança
-
-Sua chave da API do formulário de contato fica armazenada com segurança na variável contida no arquivo `.env`. Graças à configuração do `.gitignore`, suas chaves de API nunca serão expostas publicamente no repositório.
