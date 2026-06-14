@@ -1,5 +1,6 @@
 import logo from "@/assets/Logo/logo-hidroconex.jpeg";
 import { Phone, Mail, MapPin } from "lucide-react";
+import { isDemoAdminAvailable } from "@/lib/security";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -37,21 +38,29 @@ const Footer = () => {
           <div>
             <h4 className="font-bold text-lg mb-4">Links Rápidos</h4>
             <nav className="flex flex-col gap-3">
-              <a href="#inicio" className="text-secondary-foreground/70 hover:text-primary transition-colors">
+              <a href="/#inicio" className="text-secondary-foreground/70 hover:text-primary transition-colors">
                 Início
               </a>
-              <a href="#produtos" className="text-secondary-foreground/70 hover:text-primary transition-colors">
+              <a href="/#produtos" className="text-secondary-foreground/70 hover:text-primary transition-colors">
                 Produtos
               </a>
-              <a href="#sobre" className="text-secondary-foreground/70 hover:text-primary transition-colors">
+              <a href="/catalogo" className="text-secondary-foreground/70 hover:text-primary transition-colors">
+                Catálogo
+              </a>
+              <a href="/#sobre" className="text-secondary-foreground/70 hover:text-primary transition-colors">
                 Sobre Nós
               </a>
-              <a href="#localizacao" className="text-secondary-foreground/70 hover:text-primary transition-colors">
+              <a href="/#localizacao" className="text-secondary-foreground/70 hover:text-primary transition-colors">
                 Localização
               </a>
-              <a href="#contato" className="text-secondary-foreground/70 hover:text-primary transition-colors">
+              <a href="/#contato" className="text-secondary-foreground/70 hover:text-primary transition-colors">
                 Contato
               </a>
+              {isDemoAdminAvailable() && (
+                <a href="/admin" className="text-secondary-foreground/70 hover:text-primary transition-colors">
+                  Admin
+                </a>
+              )}
             </nav>
           </div>
 

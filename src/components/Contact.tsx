@@ -1,6 +1,16 @@
 import { MapPin, Phone, Clock, Mail } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
+import Reveal from "@/components/Reveal";
+import { useStoredProducts } from "@/hooks/useStoredProducts";
+import { appendQuoteRequest, createEntityId, updateQuoteRequestStatus } from "@/lib/localData";
+import {
+  sanitizeEmail,
+  sanitizeEntityId,
+  sanitizeMultilineText,
+  sanitizePhone,
+  sanitizePlainText,
+} from "@/lib/security";
 
 const horariosAgrupados = [
   { dia: "Segunda a Quinta", horas: "07:30 ás 11:30 | 12:42 ás 17:00" },
@@ -9,11 +19,17 @@ const horariosAgrupados = [
 ];
 
 const Contact = () => {
+  const products = useStoredProducts();
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaRef = useRef<HCaptcha>(null);
+
+  const activeProducts = useMemo(
+    () => products.filter((product) => product.status === "ativo"),
+    [products],
+  );
 
   useEffect(() => {
     const checkStatus = () => {
@@ -54,7 +70,7 @@ const Contact = () => {
     <section id="contato" className="section-padding bg-muted/30">
       <div className="section-container">
         {/* Section Header */}
-        <div className="text-center mb-16">
+        <Reveal className="text-center mb-16">
           <span className="inline-block text-primary font-semibold text-sm uppercase tracking-wider mb-4">
             Fale Conosco
           </span>
@@ -65,7 +81,7 @@ const Contact = () => {
             Estamos prontos para atender suas necessidades. Solicite um orçamento
             ou tire suas dúvidas.
           </p>
-        </div>
+        </Reveal>
 
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
           {/* Contact Info */}
@@ -171,7 +187,7 @@ const Contact = () => {
           </div>
 
           {/* Contact Form */}
-          <div className="card-industrial p-8 relative">
+          <div className="card-industrial p-6 sm:p-8 relative">
             <h3 className="text-xl font-bold text-foreground mb-6">
               Solicite um Orçamento
             </h3>
@@ -192,8 +208,43 @@ const Contact = () => {
                 // Prepare form data as JSON
                 const formData = new FormData(e.currentTarget);
                 const objectData = Object.fromEntries(formData);
+                const submittedProductId = sanitizeEntityId(objectData.productId);
+                const safeName = sanitizePlainText(objectData.name, 100);
+                const safeEmail = sanitizeEmail(objectData.email);
+                const safePhone = sanitizePhone(objectData.phone);
+                const safeMessage = sanitizeMultilineText(objectData.message, 800);
+                const selectedProduct = activeProducts.find((product) => product.id === submittedProductId);
+                const selectedProductId = selectedProduct?.id || "";
+
+                if (!safeName || !safePhone || !safeMessage) {
+                  setSubmitStatus({ type: 'error', message: 'Confira nome, telefone e mensagem antes de enviar.' });
+                  setIsSubmitting(false);
+                  return;
+                }
+
+                const requestId = createEntityId("orcamento");
+
+                appendQuoteRequest({
+                  id: requestId,
+                  name: safeName,
+                  email: safeEmail,
+                  phone: safePhone,
+                  productId: selectedProductId,
+                  productModel: selectedProduct?.model || "Produto não informado",
+                  message: safeMessage,
+                  status: "novo",
+                  createdAt: new Date().toISOString(),
+                });
+
+                objectData.name = safeName;
+                objectData.email = safeEmail;
+                objectData.phone = safePhone;
+                objectData.productId = selectedProductId;
+                objectData.message = safeMessage;
                 objectData.access_key = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || "";
                 objectData["h-captcha-response"] = captchaToken;
+                objectData.subject = "Nova solicitação de orçamento pelo site Hidroconex";
+                objectData.product = selectedProduct?.model || "Produto não informado";
                 const json = JSON.stringify(objectData);
 
                 try {
@@ -210,15 +261,18 @@ const Contact = () => {
                   console.log("Web3Forms Response:", data);
 
                   if (data.success) {
+                    updateQuoteRequestStatus(requestId, "enviado");
                     setSubmitStatus({ type: 'success', message: 'Sua solicitação foi enviada com sucesso! Entraremos em contato em breve.' });
                     (e.target as HTMLFormElement).reset();
                     setCaptchaToken(null);
                     captchaRef.current?.resetCaptcha();
                   } else {
+                    updateQuoteRequestStatus(requestId, "erro");
                     console.error("Web3Forms Error:", data);
                     setSubmitStatus({ type: 'error', message: data.message || 'Ocorreu um erro ao enviar. Por favor, tente novamente ou contate-nos por WhatsApp.' });
                   }
                 } catch (error) {
+                  updateQuoteRequestStatus(requestId, "erro");
                   console.error("Network Error:", error);
                   setSubmitStatus({ type: 'error', message: 'Erro de conexão. Verifique sua internet e tente novamente.' });
                 } finally {
@@ -235,6 +289,8 @@ const Contact = () => {
                   id="name"
                   name="name"
                   required
+                  maxLength={100}
+                  autoComplete="name"
                   className="w-full px-4 py-3 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   placeholder="Seu nome"
                   disabled={isSubmitting}
@@ -248,6 +304,8 @@ const Contact = () => {
                   type="email"
                   id="email"
                   name="email"
+                  maxLength={120}
+                  autoComplete="email"
                   className="w-full px-4 py-3 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   placeholder="seu@email.com"
                   disabled={isSubmitting}
@@ -262,10 +320,30 @@ const Contact = () => {
                   id="phone"
                   name="phone"
                   required
+                  maxLength={30}
+                  autoComplete="tel"
                   className="w-full px-4 py-3 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   placeholder="(00) 00000-0000"
                   disabled={isSubmitting}
                 />
+              </div>
+              <div>
+                <label htmlFor="productId" className="block text-sm font-medium text-foreground mb-2">
+                  Produto de Interesse
+                </label>
+                <select
+                  id="productId"
+                  name="productId"
+                  className="w-full px-4 py-3 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  disabled={isSubmitting}
+                >
+                  <option value="">Selecione um produto, se desejar</option>
+                  {activeProducts.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.model} | {product.subCategory}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label htmlFor="message" className="block text-sm font-medium text-foreground mb-2">
@@ -275,6 +353,7 @@ const Contact = () => {
                   id="message"
                   name="message"
                   required
+                  maxLength={800}
                   rows={4}
                   className="w-full px-4 py-3 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
                   placeholder="Descreva o que você precisa..."
@@ -289,13 +368,18 @@ const Contact = () => {
                 </div>
               )}
 
-              <HCaptcha
-                ref={captchaRef}
-                sitekey="50b2fe65-b00b-4b9e-ad62-3ba471098be2"
-                reCaptchaCompat={false}
-                onVerify={(token) => setCaptchaToken(token)}
-                onExpire={() => setCaptchaToken(null)}
-              />
+              {/* Wrapper keeps the ~300px widget from overflowing narrow cards */}
+              <div className="flex justify-center">
+                <div className="origin-center scale-90 sm:scale-100">
+                  <HCaptcha
+                    ref={captchaRef}
+                    sitekey="50b2fe65-b00b-4b9e-ad62-3ba471098be2"
+                    reCaptchaCompat={false}
+                    onVerify={(token) => setCaptchaToken(token)}
+                    onExpire={() => setCaptchaToken(null)}
+                  />
+                </div>
+              </div>
 
               <button
                 type="submit"

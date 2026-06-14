@@ -1,4 +1,4 @@
-import { ArrowRight, Shield, Cog, Award } from "lucide-react";
+import { ArrowRight, Shield, Cog, Award, ChevronDown } from "lucide-react";
 import heroImage from "@/assets/AI/hero-industrial.jpg";
 
 const Hero = () => {
@@ -89,6 +89,16 @@ const Hero = () => {
           </div>
         </div>
       </div>
+
+      {/* Scroll-down indicator */}
+      <a
+        href="#produtos"
+        aria-label="Ver produtos"
+        className="hidden md:flex absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex-col items-center gap-1 text-secondary-foreground/60 hover:text-primary transition-colors animate-float"
+      >
+        <span className="text-xs uppercase tracking-widest">Explore</span>
+        <ChevronDown className="w-5 h-5" />
+      </a>
 
       {/* Decorative Elements */}
       <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent" />

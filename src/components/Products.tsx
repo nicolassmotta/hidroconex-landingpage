@@ -1,101 +1,25 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ArrowRight } from "lucide-react";
-import { catalogData } from "@/data/catalog";
+import Reveal from "@/components/Reveal";
+import { catalogCategories, catalogCategoryGroups } from "@/data/catalogCategories";
+import { useStoredProducts } from "@/hooks/useStoredProducts";
+import { resolveProductImage } from "@/lib/catalogImages";
 
-// Load product images statically at build time using Vite's glob import
-// This is the recommended way to force the bundler to include files from /src/assets in the final build
-const productImages = import.meta.glob(
-  '/src/assets/Products/**/*.png',
-  { eager: true, import: 'default' }
-) as Record<string, string>;
-
-// Utility function to fetch and resolve the actual image path after the build
-function resolveImage(importPath: string): string {
-  const key = importPath.replace(/^\./, '');
-  let url = productImages[key];
-
-  if (!url) {
-    // Fallback 1: Try Unicode Form C normalization (required for accented characters on Mac/Linux vs Windows)
-    url = productImages[key.normalize('NFC')];
-  }
-  if (!url) {
-    // Fallback 2: Try Unicode Form D normalization
-    url = productImages[key.normalize('NFD')];
-  }
-  if (!url) {
-    // Fallback 3: If the path fails, try to fetch the image just by the last file name ignoring the folder
-    const filename = key.split('/').pop();
-    if (filename) {
-      const foundKey = Object.keys(productImages).find(k => k.endsWith('/' + filename));
-      if (foundKey) url = productImages[foundKey];
-    }
-  }
-
-  return url ?? '';
+interface ProductCardData {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  productCount: number;
 }
 
-
-// Helper function: Gets the first image of a specific catalog to use as "Cover" or category thumbnail
-function getCategoryThumbnail(categoryId: string): string {
-  const item = catalogData.find(i => i.categoryId === categoryId);
-  return item ? resolveImage(item.importPath) : '';
-}
-
-const categories = {
-  reservatorios: [
-    {
-      id: "rm-luvas",
-      title: "Luvas de Aço",
-      description: "Luvas de aço inox e carbono usinadas em alta precisão para reservatórios metálicos.",
-      get image() { return getCategoryThumbnail("rm-luvas"); },
-    },
-    {
-      id: "rm-niples",
-      title: "Niples",
-      description: "Niples resistentes projetados para suportar pressões exigidas em estruturas de reservação.",
-      get image() { return getCategoryThumbnail("rm-niples"); },
-    },
-  ],
-  tanques: [
-    {
-      id: "ts-juntas",
-      title: "Juntas de Fixação",
-      description: "Juntas de alto desempenho e vedação segura para tanques de armazenamento subterrâneo.",
-      get image() { return getCategoryThumbnail("ts-juntas"); },
-    },
-    {
-      id: "ts-luvas",
-      title: "Luvas",
-      description: "Luvas robustas em aço carbono projetadas para segurança em sistemas subterrâneos.",
-      get image() { return getCategoryThumbnail("ts-luvas"); },
-    },
-    {
-      id: "ts-niples",
-      title: "Niples de Redução",
-      description: "Diversas medidas em niples de redução e adaptação para interligação de linhas de fluido.",
-      get image() { return getCategoryThumbnail("ts-niples"); },
-    },
-    {
-      id: "ts-plugs",
-      title: "Plugs de Vedação",
-      description: "Plugs usinados para vedação estanque e segura em compartimentos e tubulações.",
-      get image() { return getCategoryThumbnail("ts-plugs"); },
-    },
-    {
-      id: "ts-filtros",
-      title: "Filtros",
-      description: "Sistemas de filtragem duráveis fundamentais para a captação de combustíveis e químicos.",
-      get image() { return getCategoryThumbnail("ts-filtros"); },
-    },
-  ]
-};
-
-const ProductCard = ({ product, index, onClick }: { product: { title: string, description: string, image: string }, index: number, onClick: () => void }) => (
-  <div
+const ProductCard = ({ product, index, onClick }: { product: ProductCardData, index: number, onClick: () => void }) => (
+  <button
+    type="button"
     onClick={onClick}
-    className="card-industrial group border border-border shadow-card hover:shadow-card-hover rounded-xl overflow-hidden bg-card flex flex-col h-full cursor-pointer"
+    className="card-industrial group border border-border shadow-card hover:shadow-card-hover rounded-xl overflow-hidden bg-card flex flex-col h-full cursor-pointer text-left"
     style={{ animationDelay: `${index * 0.1}s` }}
   >
     <div className="relative h-64 w-full overflow-hidden bg-white flex items-center justify-center p-6 border-b border-border">
@@ -103,6 +27,8 @@ const ProductCard = ({ product, index, onClick }: { product: { title: string, de
       <img
         src={product.image}
         alt={product.title}
+        loading="lazy"
+        decoding="async"
         className="max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-500 ease-out"
       />
     </div>
@@ -114,34 +40,65 @@ const ProductCard = ({ product, index, onClick }: { product: { title: string, de
         {product.description}
       </p>
 
-      <div className="mt-4 flex items-center text-muted-foreground group-hover:text-primary font-medium transition-colors duration-300">
+      <div className="mt-4 flex flex-wrap items-center gap-3 text-muted-foreground group-hover:text-primary font-medium transition-colors duration-300">
         <span className="text-sm">Ver Catálogo Detalhado</span>
+        <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+          {product.productCount} itens
+        </span>
         <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
       </div>
     </div>
-  </div>
+  </button>
 );
 
 const Products = () => {
+  const storedProducts = useStoredProducts();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleOpenCatolog = (categoryId: string) => {
+  const activeProducts = useMemo(
+    () => storedProducts.filter((product) => product.status === "ativo"),
+    [storedProducts],
+  );
+
+  const categoryCards = useMemo(() => {
+    return catalogCategoryGroups.reduce<Record<string, ProductCardData[]>>((groups, group) => {
+      groups[group.id] = group.categoryIds
+        .map((categoryId) => {
+          const category = catalogCategories.find((item) => item.id === categoryId);
+          const productsInCategory = activeProducts.filter((product) => product.categoryId === categoryId);
+          const thumbnailProduct = productsInCategory[0];
+
+          if (!category || productsInCategory.length === 0) return null;
+
+          return {
+            id: category.id,
+            title: category.title,
+            description: category.description,
+            image: thumbnailProduct ? resolveProductImage(thumbnailProduct) : "/placeholder.svg",
+            productCount: productsInCategory.length,
+          };
+        })
+        .filter((category): category is ProductCardData => Boolean(category));
+
+      return groups;
+    }, {});
+  }, [activeProducts]);
+
+  const handleOpenCatalog = (categoryId: string) => {
     setSelectedCategoryId(categoryId);
     setIsModalOpen(true);
   };
 
-  const detailedItems = catalogData.filter(item => item.categoryId === selectedCategoryId);
-  const activeCategoryTitle = Object.values(categories)
-    .flat()
-    .find(c => c.id === selectedCategoryId)?.title || "Catálogo de Produtos";
+  const detailedItems = activeProducts.filter((item) => item.categoryId === selectedCategoryId);
+  const activeCategoryTitle = catalogCategories.find((category) => category.id === selectedCategoryId)?.title || "Catálogo de Produtos";
 
   return (
     <section id="produtos" className="section-padding bg-muted/30">
       <div className="section-container">
         {/* Section Header */}
-        <div className="text-center mb-16">
-          <span className="inline-block text-primary font-semibold text-sm uppercase tracking-wider mb-4 animate-fade-in">
+        <Reveal className="text-center mb-16">
+          <span className="inline-block text-primary font-semibold text-sm uppercase tracking-wider mb-4">
             Nosso Catálogo
           </span>
           <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4 font-heading tracking-tight">
@@ -150,7 +107,7 @@ const Products = () => {
           <p className="text-muted-foreground max-w-2xl mx-auto text-lg leading-relaxed">
             Especialistas na fabricação de peças de alta precisão técnica para as principais aplicações e exigências da indústria atual.
           </p>
-        </div>
+        </Reveal>
 
         {/* Catalog Tabs */}
         <Tabs defaultValue="tanques" className="w-full">
@@ -158,13 +115,13 @@ const Products = () => {
             <TabsList className="bg-background border border-border p-1 w-full max-w-[600px] h-[60px] shadow-sm rounded-lg">
               <TabsTrigger
                 value="tanques"
-                className="w-1/2 h-full text-sm sm:text-base font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300 rounded-md"
+                className="w-1/2 h-full px-1 text-xs sm:text-sm md:text-base font-semibold leading-tight whitespace-normal text-center data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300 rounded-md"
               >
                 Tanques Subterrâneos
               </TabsTrigger>
               <TabsTrigger
                 value="reservatorios"
-                className="w-1/2 h-full text-sm sm:text-base font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300 rounded-md"
+                className="w-1/2 h-full px-1 text-xs sm:text-sm md:text-base font-semibold leading-tight whitespace-normal text-center data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300 rounded-md"
               >
                 Reservatórios Metálicos
               </TabsTrigger>
@@ -173,26 +130,28 @@ const Products = () => {
 
           <TabsContent value="tanques" className="mt-0 focus-visible:outline-none focus-visible:ring-0 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-              {categories.tanques.map((product, index) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  index={index}
-                  onClick={() => handleOpenCatolog(product.id)}
-                />
+              {categoryCards.tanques?.map((product, index) => (
+                <Reveal key={product.id} className="h-full" delay={index * 80}>
+                  <ProductCard
+                    product={product}
+                    index={index}
+                    onClick={() => handleOpenCatalog(product.id)}
+                  />
+                </Reveal>
               ))}
             </div>
           </TabsContent>
 
           <TabsContent value="reservatorios" className="mt-0 focus-visible:outline-none focus-visible:ring-0 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 max-w-4xl mx-auto">
-              {categories.reservatorios.map((product, index) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  index={index}
-                  onClick={() => handleOpenCatolog(product.id)}
-                />
+              {categoryCards.reservatorios?.map((product, index) => (
+                <Reveal key={product.id} className="h-full" delay={index * 80}>
+                  <ProductCard
+                    product={product}
+                    index={index}
+                    onClick={() => handleOpenCatalog(product.id)}
+                  />
+                </Reveal>
               ))}
             </div>
           </TabsContent>
@@ -230,16 +189,17 @@ const Products = () => {
                   <div key={item.id} className="bg-card border border-border rounded-xl p-6 flex flex-col items-center justify-center shadow-sm hover:shadow-md transition-shadow group">
                     <div className="h-48 w-full flex items-center justify-center mb-6">
                       <img
-                        src={resolveImage(item.importPath)}
+                        src={resolveProductImage(item)}
                         alt={item.model}
+                        loading="lazy"
+                        decoding="async"
                         className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
                       />
                     </div>
                     <h4 className="text-lg font-bold text-foreground text-center mb-2">
                       {item.model}
                     </h4>
-                    {/* Hidden Description Area for Future Content */}
-                    <p className="text-xs text-muted-foreground/50 text-center italic hidden">
+                    <p className="text-xs text-muted-foreground text-center">
                       {item.description}
                     </p>
                   </div>

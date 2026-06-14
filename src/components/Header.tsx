@@ -1,8 +1,13 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import logo from "@/assets/Logo/logo-hidroconex.jpeg";
+import { isDemoAdminAvailable } from "@/lib/security";
 
-const Header = () => {
+interface HeaderProps {
+  variant?: "home" | "internal";
+}
+
+const Header = ({ variant = "home" }: HeaderProps) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -14,17 +19,26 @@ const Header = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const anchorPrefix = variant === "home" ? "" : "/";
+  const contactHref = variant === "home" ? "#contato" : "/#contato";
+
   const navItems = [
-    { label: "Início", href: "#inicio" },
-    { label: "Produtos", href: "#produtos" },
-    { label: "Sobre", href: "#sobre" },
-    { label: "Localização", href: "#localizacao" },
-    { label: "Contato", href: "#contato" },
+    { label: "Início", href: `${anchorPrefix}#inicio` },
+    { label: "Produtos", href: `${anchorPrefix}#produtos` },
+    { label: "Catálogo", href: "/catalogo" },
+    { label: "Sobre", href: `${anchorPrefix}#sobre` },
+    { label: "Localização", href: `${anchorPrefix}#localizacao` },
+    { label: "Contato", href: contactHref },
+    ...(isDemoAdminAvailable() ? [{ label: "Admin", href: "/admin" }] : []),
   ];
+
+  // Header turns solid when scrolled OR when the mobile menu is open,
+  // so nav controls stay legible instead of sitting on the dark hero.
+  const solid = variant === "internal" || isScrolled || isMobileMenuOpen;
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${solid
         ? "bg-card/95 backdrop-blur-md shadow-lg"
         : "bg-transparent"
         }`}
@@ -32,7 +46,7 @@ const Header = () => {
       <div className="section-container">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
-          <a href="#inicio" className="flex items-center">
+          <a href={variant === "home" ? "#inicio" : "/"} className="flex items-center">
             <img
               src={logo}
               alt="Hidroconex"
@@ -41,12 +55,12 @@ const Header = () => {
           </a>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-5 xl:gap-8">
             {navItems.map((item) => (
               <a
                 key={item.label}
                 href={item.href}
-                className={`font-medium transition-colors duration-200 ${isScrolled
+                className={`font-medium transition-colors duration-200 ${solid
                   ? "text-foreground/80 hover:text-primary"
                   : "text-secondary-foreground/90 hover:text-primary"
                   }`}
@@ -55,7 +69,7 @@ const Header = () => {
               </a>
             ))}
             <a
-              href="#contato"
+              href={contactHref}
               className="btn-hero text-sm px-6 py-3"
             >
               Solicitar Orçamento
@@ -65,7 +79,8 @@ const Header = () => {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 text-foreground"
+            aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+            className={`lg:hidden p-2 transition-colors ${solid ? "text-foreground" : "text-white"}`}
           >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -73,7 +88,7 @@ const Header = () => {
 
         {/* Mobile Navigation */}
         {isMobileMenuOpen && (
-          <nav className="md:hidden pb-4 animate-fade-in">
+          <nav className="lg:hidden pb-4 animate-fade-in">
             <div className="flex flex-col gap-4 bg-card rounded-lg p-4 shadow-lg">
               {navItems.map((item) => (
                 <a
@@ -86,7 +101,7 @@ const Header = () => {
                 </a>
               ))}
               <a
-                href="#contato"
+                href={contactHref}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="btn-hero text-center text-sm px-6 py-3 mt-2"
               >

@@ -1,4 +1,5 @@
 import { Factory, Users, Target, TrendingUp } from "lucide-react";
+import Reveal from "@/components/Reveal";
 
 const stats = [
   { icon: Factory, value: "100%", label: "Fabricação Própria" },
@@ -13,7 +14,7 @@ const About = () => {
       <div className="section-container">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Content */}
-          <div>
+          <Reveal>
             <span className="inline-block text-primary font-semibold text-sm uppercase tracking-wider mb-4">
               Sobre Nós
             </span>
@@ -59,10 +60,10 @@ const About = () => {
                 <span className="text-sm text-foreground">Entrega Via Transportadora</span>
               </div>
             </div>
-          </div>
+          </Reveal>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-2 gap-4">
+          <Reveal className="grid grid-cols-2 gap-4" delay={150}>
             {stats.map((stat, index) => (
               <div
                 key={stat.label}
@@ -78,7 +79,7 @@ const About = () => {
                 <p className="text-sm text-muted-foreground">{stat.label}</p>
               </div>
             ))}
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>

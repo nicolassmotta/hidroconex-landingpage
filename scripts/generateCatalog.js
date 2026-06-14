@@ -45,8 +45,9 @@ function formatModelName(folderName) {
 function generateCatalog() {
   console.log('Scanning directories in: ' + ASSETS_DIR);
 
-  // Varre a pasta de Assets do projeto atrás de todo e qualquer arquivo PNG
-  const files = globSync(`${ASSETS_DIR}/**/*.png`);
+  // Varre a pasta de Assets do projeto atrás das imagens otimizadas (WebP).
+  // Imagens são convertidas previamente por: node scripts/optimizeImages.js
+  const files = globSync(`${ASSETS_DIR}/**/*.webp`);
 
   // Filtro de repetição: Mantém apenas 1 imagem representativa por pasta de modelo
   const processedModels = new Set();
