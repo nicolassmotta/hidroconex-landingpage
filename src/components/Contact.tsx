@@ -3,49 +3,42 @@ import { useState, useEffect, useRef } from "react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 
 const horariosAgrupados = [
-  { dia: "Segunda a Quinta", horas: "07:30 ás 11:30 | 12:42 ás 17:00" },
-  { dia: "Sexta-feira", horas: "07:30 ás 11:30 | 12:42 ás 16:00" },
-  { dia: "Sábado e Domingo", horas: "Fechado" },
+  { dia: "Segunda a quinta", horas: "07:30 às 11:30 | 12:42 às 17:00" },
+  { dia: "Sexta-feira", horas: "07:30 às 11:30 | 12:42 às 16:00" },
+  { dia: "Sábado e domingo", horas: "Fechado" },
 ];
 
 const Contact = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [submitStatus, setSubmitStatus] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaRef = useRef<HCaptcha>(null);
 
   useEffect(() => {
     const checkStatus = () => {
       const now = new Date();
-      // Convert current time to Brasilia timezone (prevents bugs if user is in another country)
       const brTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-      const day = brTime.getDay(); // 0 = Sunday, 1 = Monday, ..., 5 = Friday, 6 = Saturday
-
-      // Convert current time in total minutes for easy comparison (ex: 07:30 = 7 * 60 + 30 = 450)
+      const day = brTime.getDay();
       const timeInMinutes = brTime.getHours() * 60 + brTime.getMinutes();
 
       let open = false;
 
-      // Operating rules: Monday to Friday
       if (day >= 1 && day <= 5) {
-        // Morning Period: 07:30 (450 min) to 11:30 (690 min)
         const isMorningOpen = timeInMinutes >= 450 && timeInMinutes < 690;
-
-        // Afternoon Period: 12:42 (762 min) to 17:00 (1020 min) for Mon-Thu, or 16:00 (960 min) for Friday
         const afternoonClose = day === 5 ? 960 : 1020;
         const isAfternoonOpen = timeInMinutes >= 762 && timeInMinutes < afternoonClose;
 
-        if (isMorningOpen || isAfternoonOpen) {
-          open = true;
-        }
+        open = isMorningOpen || isAfternoonOpen;
       }
 
       setIsOpen(open);
     };
 
     checkStatus();
-    // Update status every 60 seconds to reflect real-time changes without reloading the page
     const interval = setInterval(checkStatus, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -53,24 +46,21 @@ const Contact = () => {
   return (
     <section id="contato" className="section-padding bg-muted/30">
       <div className="section-container">
-        {/* Section Header */}
         <div className="text-center mb-16">
           <span className="inline-block text-primary font-semibold text-sm uppercase tracking-wider mb-4">
             Fale Conosco
           </span>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Entre em <span className="text-primary">Contato</span>
+            Entre em <span className="text-primary">contato</span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Estamos prontos para atender suas necessidades. Solicite um orçamento
-            ou tire suas dúvidas.
+            Estamos prontos para atender sua necessidade. Solicite um orçamento
+            ou tire dúvidas com a equipe da Hidroconex.
           </p>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-          {/* Contact Info */}
           <div className="space-y-6">
-            {/* Address */}
             <div className="card-industrial p-6 flex items-start gap-4">
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <MapPin className="w-6 h-6 text-primary" />
@@ -85,7 +75,6 @@ const Contact = () => {
               </div>
             </div>
 
-            {/* Phone */}
             <div className="card-industrial p-6 flex items-start gap-4">
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Phone className="w-6 h-6 text-primary" />
@@ -103,57 +92,54 @@ const Contact = () => {
               </div>
             </div>
 
-            {/* Business Hours Card */}
             <div className="card-industrial p-6 flex items-start gap-4">
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Clock className="w-6 h-6 text-primary" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-foreground mb-4">Horário de Funcionamento</h3>
+                <h3 className="font-bold text-foreground mb-4">Horário de funcionamento</h3>
 
                 <div className="space-y-3 w-full text-sm">
-                  {horariosAgrupados.map((item, index) => (
-                    <div key={index} className="flex items-center group">
-                      {/* Day Name */}
+                  {horariosAgrupados.map((item) => (
+                    <div key={item.dia} className="flex items-center group">
                       <span className="text-muted-foreground whitespace-nowrap">
                         {item.dia}
                       </span>
-
-                      {/* Subtle guide line (optional, but helps visually) */}
-                      <div className="mx-2 flex-grow border-b border-dotted border-muted/30 mb-1"></div>
-
-                      {/* Hours */}
-                      <span className={`
-              whitespace-nowrap font-medium
-              ${item.horas === "Fechado" ? "text-muted-foreground/60 italic" : "text-foreground"}
-            `}>
+                      <div className="mx-2 flex-grow border-b border-dotted border-muted/30 mb-1" />
+                      <span
+                        className={`whitespace-nowrap font-medium ${
+                          item.horas === "Fechado"
+                            ? "text-muted-foreground/60 italic"
+                            : "text-foreground"
+                        }`}
+                      >
                         {item.horas}
                       </span>
                     </div>
                   ))}
                 </div>
 
-                {/* Real-time Status Indicator */}
                 {isOpen ? (
                   <div className="mt-4 pt-4 border-t border-muted/20 flex items-center gap-2 animate-fade-in">
                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
                     </span>
-                    <span className="text-xs font-medium text-green-600 uppercase tracking-wider">Aberto Agora</span>
+                    <span className="text-xs font-medium text-green-600 uppercase tracking-wider">
+                      Aberto agora
+                    </span>
                   </div>
                 ) : (
                   <div className="mt-4 pt-4 border-t border-muted/20 flex items-center gap-2 animate-fade-in">
-                    <span className="relative flex h-2 w-2">
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500/80"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500/80" />
+                    <span className="text-xs font-medium text-red-600/80 uppercase tracking-wider">
+                      Fechado no momento
                     </span>
-                    <span className="text-xs font-medium text-red-600/80 uppercase tracking-wider">Fechado no Momento</span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Email */}
             <div className="card-industrial p-6 flex items-start gap-4">
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Mail className="w-6 h-6 text-primary" />
@@ -170,57 +156,65 @@ const Contact = () => {
             </div>
           </div>
 
-          {/* Contact Form */}
           <div className="card-industrial p-8 relative">
             <h3 className="text-xl font-bold text-foreground mb-6">
-              Solicite um Orçamento
+              Solicite um orçamento
             </h3>
 
             <form
               className="space-y-5"
-              onSubmit={async (e) => {
-                e.preventDefault();
+              onSubmit={async (event) => {
+                event.preventDefault();
                 setIsSubmitting(true);
                 setSubmitStatus(null);
-                
+
                 if (!captchaToken) {
-                  setSubmitStatus({ type: 'error', message: 'Por favor, preencha o captcha antes de enviar.' });
+                  setSubmitStatus({
+                    type: "error",
+                    message: "Por favor, preencha o captcha antes de enviar.",
+                  });
                   setIsSubmitting(false);
                   return;
                 }
 
-                // Prepare form data as JSON
-                const formData = new FormData(e.currentTarget);
+                const formData = new FormData(event.currentTarget);
                 const objectData = Object.fromEntries(formData);
                 objectData.access_key = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || "";
                 objectData["h-captcha-response"] = captchaToken;
-                const json = JSON.stringify(objectData);
 
                 try {
-                  const res = await fetch("https://api.web3forms.com/submit", {
+                  const response = await fetch("https://api.web3forms.com/submit", {
                     method: "POST",
                     headers: {
                       "Content-Type": "application/json",
                       Accept: "application/json",
                     },
-                    body: json
+                    body: JSON.stringify(objectData),
                   });
 
-                  const data = await res.json();
-                  console.log("Web3Forms Response:", data);
+                  const data = await response.json();
 
                   if (data.success) {
-                    setSubmitStatus({ type: 'success', message: 'Sua solicitação foi enviada com sucesso! Entraremos em contato em breve.' });
-                    (e.target as HTMLFormElement).reset();
+                    setSubmitStatus({
+                      type: "success",
+                      message: "Sua solicitação foi enviada com sucesso. Entraremos em contato em breve.",
+                    });
+                    event.currentTarget.reset();
                     setCaptchaToken(null);
                     captchaRef.current?.resetCaptcha();
                   } else {
-                    console.error("Web3Forms Error:", data);
-                    setSubmitStatus({ type: 'error', message: data.message || 'Ocorreu um erro ao enviar. Por favor, tente novamente ou contate-nos por WhatsApp.' });
+                    setSubmitStatus({
+                      type: "error",
+                      message:
+                        data.message ||
+                        "Ocorreu um erro ao enviar. Tente novamente ou fale conosco por WhatsApp.",
+                    });
                   }
-                } catch (error) {
-                  console.error("Network Error:", error);
-                  setSubmitStatus({ type: 'error', message: 'Erro de conexão. Verifique sua internet e tente novamente.' });
+                } catch {
+                  setSubmitStatus({
+                    type: "error",
+                    message: "Erro de conexão. Verifique sua internet e tente novamente.",
+                  });
                 } finally {
                   setIsSubmitting(false);
                 }
@@ -228,7 +222,7 @@ const Contact = () => {
             >
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-foreground mb-2">
-                  Nome Completo
+                  Nome completo
                 </label>
                 <input
                   type="text"
@@ -240,6 +234,7 @@ const Contact = () => {
                   disabled={isSubmitting}
                 />
               </div>
+
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
                   E-mail
@@ -253,6 +248,7 @@ const Contact = () => {
                   disabled={isSubmitting}
                 />
               </div>
+
               <div>
                 <label htmlFor="phone" className="block text-sm font-medium text-foreground mb-2">
                   Telefone
@@ -267,6 +263,7 @@ const Contact = () => {
                   disabled={isSubmitting}
                 />
               </div>
+
               <div>
                 <label htmlFor="message" className="block text-sm font-medium text-foreground mb-2">
                   Mensagem
@@ -283,8 +280,13 @@ const Contact = () => {
               </div>
 
               {submitStatus && (
-                <div className={`p-4 rounded-md text-sm font-medium animate-fade-in ${submitStatus.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'
-                  }`}>
+                <div
+                  className={`p-4 rounded-md text-sm font-medium animate-fade-in ${
+                    submitStatus.type === "success"
+                      ? "bg-green-100 text-green-800 border border-green-200"
+                      : "bg-red-100 text-red-800 border border-red-200"
+                  }`}
+                >
                   {submitStatus.message}
                 </div>
               )}
@@ -304,11 +306,11 @@ const Contact = () => {
               >
                 {isSubmitting ? (
                   <>
-                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Enviando...
                   </>
                 ) : (
-                  "Enviar Solicitação"
+                  "Enviar solicitação"
                 )}
               </button>
             </form>

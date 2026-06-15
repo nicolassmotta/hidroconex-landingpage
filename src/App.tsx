@@ -1,23 +1,29 @@
-import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
+import AdminPage from "./pages/Admin";
+import CatalogPage from "./pages/Catalog";
 import Index from "./pages/Index";
 
+function getRoute() {
+  return window.location.pathname.replace(/\/+$/, "") || "/";
+}
+
 const App = () => {
-  useEffect(() => {
-    // Fallback: Redireciona qualquer rota diferente da raiz ("/") de volta para a landing page
-    if (window.location.pathname !== "/") {
-      window.location.replace("/" + window.location.search + window.location.hash);
-    }
-  }, []);
+  const route = getRoute();
 
   return (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <Index />
+      {route === "/catalogo" ? (
+        <CatalogPage />
+      ) : route === "/admin" ? (
+        <AdminPage />
+      ) : (
+        <Index />
+      )}
     </TooltipProvider>
   );
 };

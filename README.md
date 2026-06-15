@@ -1,63 +1,87 @@
-# Hidroconex - Landing Page Oficial
+# Hidroconex - Site Oficial
 
-Bem-vindo ao repositório do projeto **Hidroconex**, uma landing page moderna e responsiva desenvolvida para apresentar o catálogo de produtos, história e informações de contato da fabricante de conexões industriais.
+Site oficial da Hidroconex com landing page, catálogo público separado e painel administrativo para cadastrar, editar e remover produtos com fotos.
 
-## 🚀 Tecnologias Utilizadas
+## Stack
 
-Este projeto foi construído utilizando as ferramentas mais modernas do ecossistema front-end:
+- React + Vite + TypeScript no frontend.
+- Tailwind CSS para a interface.
+- Node.js puro no backend, sem Express.
+- MongoDB como banco de dados principal.
+- GridFS do MongoDB para armazenar as fotos enviadas pelo admin.
+- Web3Forms + hCaptcha no formulário de contato.
+- API compatível com servidor Node local e Vercel Functions em produção.
 
-- **React + Vite:** Para uma renderização rápida e um ambiente de desenvolvimento instantâneo.
-- **TypeScript:** Garantindo tipagem estática, código seguro e previsível.
-- **Tailwind CSS:** Para estilização altamente customizável e responsiva.
-- **Shadcn UI + Radix:** Componentes acessíveis e projetados de forma nativa.
-- **Web3Forms + hCaptcha:** Para um formulário de contato funcional, seguro e protegido contra spam, enviado diretamente para o seu e-mail, sem a necessidade de um backend próprio.
-- **Node.js (Scripts):** Utilizado para gerar dinamicamente o catálogo dos produtos à partir das subpastas de imagens.
+## Banco de Dados
 
-## 📦 Estrutura do Projeto
+Configure o MongoDB no `.env`:
 
-- `/src/assets/Products`: Contém todas as imagens dos produtos com fundo transparente.
-- `/src/components`: Componentes da interface como `Hero`, `Products`, `Contact`, `Location`, etc.
-- `/src/data/catalog.ts`: Dados automáticos do catálogo, gerados a partir do script Node.js.
-- `/scripts/generateCatalog.js`: Script responsável por ler os diretórios de produtos e gerar/atualizar o catálogo dinâmico.
+```env
+MONGODB_URI="mongodb://127.0.0.1:27017"
+MONGODB_DB_NAME="hidroconex"
+ADMIN_PASSWORD="uma_senha_forte"
+PORT=3333
+IMAGE_LIMIT_MB=3
+VITE_WEB3FORMS_ACCESS_KEY="sua_chave_web3forms"
+```
 
-## ⚙️ Como executar rodar o projeto localmente
+O backend cria automaticamente:
 
-Siga os passos abaixo para rodar o projeto na sua máquina:
+- `products`: dados do catálogo.
+- `settings`: controle de seed/migração.
+- `productImages.files` e `productImages.chunks`: imagens via GridFS.
 
-1. **Clone o repositório:**
-   ```bash
-   git clone <URL_DO_SEU_REPOSITORIO>
-   ```
+Quando o MongoDB estiver vazio, o backend importa os produtos iniciais do catálogo legado.
 
-2. **Navegue até a pasta:**
-   ```bash
-   cd hidroconex-launchpad
-   ```
+## Como Rodar
 
-3. **Instale as dependências:**
-   Você pode usar npm, pnpm ou bun. (Exemplo com npm)
-   ```bash
-   npm install
-   ```
-
-4. **Configuração de Variáveis de Ambiente:**
-   Crie um arquivo chamado `.env` na raiz do projeto.
-   Dentro dele, adicione a sua chave do Web3Forms para que o formulário de contato funcione:
-   ```env
-   VITE_WEB3FORMS_ACCESS_KEY="coloque_sua_chave_aqui"
-   ```
-
-5. **Inicie o Servidor de Desenvolvimento:**
-   ```bash
-   npm run dev
-   ```
-   Acesse no navegador: `http://localhost:8080` (a porta pode variar dependendo da configuração automática do Vite).
-
-## 🛠️ Como atualizar o Catálogo de Produtos
-
-Se você adicionar novas fotos dentro de `src/assets/Products/`, certifique-se de executar o script de geração para atualizar o array `src/data/catalog.ts`:
+1. Instale as dependências:
 
 ```bash
-node scripts/generateCatalog.js
+npm install
 ```
-*Isso lerá todas as novas pastas de modelos e automaticamente formatará os títulos para o site.*
+
+2. Garanta que o MongoDB esteja rodando.
+
+3. Rode frontend e backend juntos:
+
+```bash
+npm run dev
+```
+
+O site abre em `http://localhost:8080`.
+
+## Rotas
+
+- `/` - landing page institucional.
+- `/catalogo` - catálogo público completo.
+- `/admin` - painel para gerenciar produtos e fotos.
+- `/api/catalog` - API pública do catálogo.
+- `/api/catalog/images/:id` - imagens salvas no MongoDB/GridFS.
+- `/api/health` - status da API e do MongoDB.
+
+## Scripts Úteis
+
+```bash
+npm run dev       # API + Vite
+npm run dev:web   # somente frontend
+npm run dev:api   # somente backend Node
+npm run build     # build de produção
+npm run start     # serve API e frontend buildado
+npm run lint      # lint
+npm run test      # testes
+```
+
+## Produção
+
+Use uma `MONGODB_URI` de produção, como MongoDB Atlas ou servidor próprio, e configure `ADMIN_PASSWORD` com uma senha forte. As fotos novas não dependem de disco local: ficam no GridFS do MongoDB.
+
+Na Vercel, configure pelo painel as variáveis:
+
+- `MONGODB_URI`
+- `MONGODB_DB_NAME`
+- `ADMIN_PASSWORD`
+- `VITE_WEB3FORMS_ACCESS_KEY`
+- `IMAGE_LIMIT_MB` com valor recomendado `3`
+
+O frontend é publicado como Vite e a API roda em `api/[...path].js`, reaproveitando o backend Node do projeto.

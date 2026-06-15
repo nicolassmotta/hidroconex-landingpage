@@ -1,9 +1,9 @@
 import { Factory, Users, Target, TrendingUp } from "lucide-react";
 
 const stats = [
-  { icon: Factory, value: "100%", label: "Fabricação Própria" },
-  { icon: Users, value: "+150", label: "Clientes Atendidos" },
-  { icon: Target, value: "Precisão", label: "Em Cada Peça" },
+  { icon: Factory, value: "100%", label: "Fabricação própria" },
+  { icon: Users, value: "+150", label: "Clientes atendidos" },
+  { icon: Target, value: "Precisão", label: "Em cada peça" },
   { icon: TrendingUp, value: "Qualidade", label: "Comprovada" },
 ];
 
@@ -12,20 +12,19 @@ const About = () => {
     <section id="sobre" className="section-padding bg-background">
       <div className="section-container">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          {/* Content */}
           <div>
             <span className="inline-block text-primary font-semibold text-sm uppercase tracking-wider mb-4">
               Sobre Nós
             </span>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-6">
-              Tradição e <span className="text-primary">Inovação</span> na
-              Fabricação Industrial
+              Tradição e <span className="text-primary">inovação</span> na
+              fabricação industrial
             </h2>
 
             <div className="space-y-4 text-muted-foreground leading-relaxed">
               <p>
                 A <strong className="text-foreground">Hidroconex Indústria e Comércio Ltda</strong> é
-                uma fabricante estabelecida na Região de São José do Rio Preto há 14 anos,
+                uma fabricante estabelecida na região de São José do Rio Preto há 14 anos,
                 especializada na produção de conexões e componentes de aço.
               </p>
               <p>
@@ -35,33 +34,30 @@ const About = () => {
               </p>
               <p>
                 Cada peça fabricada pela Hidroconex passa por controle de qualidade,
-                assegurando que nossos clientes recebam produtos com a durabilidade e
-                performance que o setor industrial exige.
+                assegurando durabilidade, precisão e performance para o setor industrial.
               </p>
             </div>
 
-            {/* Features List */}
             <div className="mt-8 grid grid-cols-2 gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary" />
-                <span className="text-sm text-foreground">Aço Carbono</span>
+                <span className="text-sm text-foreground">Aço carbono</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary" />
-                <span className="text-sm text-foreground">Atendimento com Excelência</span>
+                <span className="text-sm text-foreground">Atendimento técnico</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary" />
-                <span className="text-sm text-foreground">Sob Medida</span>
+                <span className="text-sm text-foreground">Peças sob medida</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary" />
-                <span className="text-sm text-foreground">Entrega Via Transportadora</span>
+                <span className="text-sm text-foreground">Envio por transportadora</span>
               </div>
             </div>
           </div>
 
-          {/* Stats Cards */}
           <div className="grid grid-cols-2 gap-4">
             {stats.map((stat, index) => (
               <div

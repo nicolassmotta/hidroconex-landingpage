@@ -119,6 +119,9 @@
 
   html {
     scroll-behavior: smooth;
+    /* Compensa o header fixo (h-20 = 5rem) ao navegar por âncoras,
+       evitando que os títulos fiquem escondidos atrás do cabeçalho. */
+    scroll-padding-top: 5rem;
   }
 
   body {

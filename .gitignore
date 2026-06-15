@@ -11,6 +11,9 @@ node_modules
 dist
 dist-ssr
 *.local
+server/data/catalog.json
+public/uploads/products/*
+!public/uploads/products/.gitkeep
 
 # Editor directories and files
 .vscode/*

@@ -2,13 +2,12 @@ const Location = () => {
   return (
     <section id="localizacao" className="section-padding bg-background">
       <div className="section-container">
-        {/* Section Header */}
         <div className="text-center mb-12">
           <span className="inline-block text-primary font-semibold text-sm uppercase tracking-wider mb-4">
             Onde Estamos
           </span>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Nossa <span className="text-primary">Localização</span>
+            Nossa <span className="text-primary">localização</span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Visite nossa fábrica em São José do Rio Preto. Estamos localizados
@@ -16,7 +15,6 @@ const Location = () => {
           </p>
         </div>
 
-        {/* Map Container */}
         <div className="rounded-xl overflow-hidden shadow-xl border border-border">
           <iframe
             src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3731.2835897619847!2d-49.40247182375747!3d-20.81611118073837!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94bdad38cb7baa97%3A0x9c77f7f4fcae3e8e!2sR.%20Monteiro%20Lobato%2C%20750%20-%20Distrito%20Industrial%2C%20S%C3%A3o%20Jos%C3%A9%20do%20Rio%20Preto%20-%20SP!5e0!3m2!1spt-BR!2sbr!4v1706000000000!5m2!1spt-BR!2sbr"
@@ -31,7 +29,6 @@ const Location = () => {
           />
         </div>
 
-        {/* Address Summary */}
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 text-center">
           <div className="flex items-center gap-2 text-muted-foreground">
             <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">

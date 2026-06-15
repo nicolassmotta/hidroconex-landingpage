@@ -10,6 +10,10 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      "/api": "http://localhost:3333",
+      "/uploads": "http://localhost:3333",
+    },
   },
   plugins: [react()].filter(Boolean),
   resolve: {
