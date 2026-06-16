@@ -341,7 +341,7 @@ const AdminPage = () => {
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={loadProducts}
+              onClick={() => loadProducts()}
               disabled={isLoading}
               className="inline-flex items-center gap-2 rounded-md border border-white/20 px-4 py-3 text-sm font-semibold hover:bg-white/10 transition-colors disabled:opacity-70"
             >

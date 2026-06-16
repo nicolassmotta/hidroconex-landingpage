@@ -119,6 +119,14 @@ function sign(value) {
   return crypto.createHmac("sha256", adminPassword()).update(value).digest("base64url");
 }
 
+function safePasswordMatch(received, expected) {
+  // Constant-time comparison to avoid leaking the password through timing.
+  // SHA-256 normalizes the inputs to a fixed length so timingSafeEqual never throws.
+  const receivedHash = crypto.createHash("sha256").update(String(received)).digest();
+  const expectedHash = crypto.createHash("sha256").update(String(expected)).digest();
+  return crypto.timingSafeEqual(receivedHash, expectedHash);
+}
+
 function createToken() {
   const payload = {
     iat: Date.now(),
@@ -532,7 +540,7 @@ async function handleApi(req, res, pathname) {
       return;
     }
 
-    if (String(payload.password || "") !== configuredPassword) {
+    if (!safePasswordMatch(payload.password || "", configuredPassword)) {
       sendError(res, 401, "Senha inválida.");
       return;
     }
