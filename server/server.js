@@ -22,6 +22,9 @@ const TOKEN_TTL_MS = Number(process.env.ADMIN_TOKEN_TTL_HOURS || 8) * 60 * 60 * 
 const DEFAULT_IMAGE_LIMIT_MB = process.env.VERCEL ? 3 : 8;
 const JSON_LIMIT_BYTES = Number(process.env.JSON_BODY_LIMIT_MB || DEFAULT_IMAGE_LIMIT_MB + 2) * 1024 * 1024;
 const IMAGE_LIMIT_BYTES = Number(process.env.IMAGE_LIMIT_MB || DEFAULT_IMAGE_LIMIT_MB) * 1024 * 1024;
+const LOGIN_MAX_ATTEMPTS = Number(process.env.LOGIN_MAX_ATTEMPTS || 8);
+const LOGIN_WINDOW_MS = Number(process.env.LOGIN_WINDOW_MIN || 15) * 60 * 1000;
+const LOGIN_BLOCK_MS = Number(process.env.LOGIN_BLOCK_MIN || 15) * 60 * 1000;
 
 const CATEGORY_MAP = {
   "rm-luvas": { mainCategory: "Reservatórios Metálicos", subCategory: "Luvas" },
@@ -44,6 +47,7 @@ let database;
 let productsCollection;
 let settingsCollection;
 let imagesBucket;
+let loginAttemptsCollection;
 let databaseReadyPromise;
 
 function loadEnv(filePath) {
@@ -73,8 +77,19 @@ function loadEnv(filePath) {
 }
 
 function setCorsHeaders(req, res) {
+  // The SPA is served from the same origin as the API, so no CORS header is
+  // needed by default. Only emit one when an allowlist is explicitly set via
+  // CORS_ORIGIN — avoids a wildcard / arbitrary-origin-reflecting policy.
   const configuredOrigin = process.env.CORS_ORIGIN;
-  const origin = configuredOrigin || req.headers.origin || "*";
+  if (!configuredOrigin) return;
+
+  const allowed = configuredOrigin
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const requestOrigin = req.headers.origin;
+  const origin = requestOrigin && allowed.includes(requestOrigin) ? requestOrigin : allowed[0];
+
   res.setHeader("Access-Control-Allow-Origin", origin);
   res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
@@ -176,6 +191,49 @@ function requireAdmin(req, res) {
   }
 
   return true;
+}
+
+function clientIp(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (typeof forwarded === "string" && forwarded.length > 0) {
+    return forwarded.split(",")[0].trim();
+  }
+  return req.socket?.remoteAddress || "unknown";
+}
+
+/** Returns remaining block time in ms (0 when the IP is allowed to try). */
+async function getLoginBlock(ip) {
+  const doc = await loginAttemptsCollection.findOne({ _id: ip });
+  if (doc?.blockedUntil && doc.blockedUntil > Date.now()) {
+    return doc.blockedUntil - Date.now();
+  }
+  return 0;
+}
+
+async function registerFailedLogin(ip) {
+  const now = Date.now();
+  const doc = await loginAttemptsCollection.findOne({ _id: ip });
+
+  const withinWindow = doc?.windowStart && now - doc.windowStart < LOGIN_WINDOW_MS;
+  const count = (withinWindow ? doc.count || 0 : 0) + 1;
+
+  const update = {
+    count,
+    windowStart: withinWindow ? doc.windowStart : now,
+    expireAt: new Date(now + LOGIN_WINDOW_MS + LOGIN_BLOCK_MS),
+  };
+
+  if (count >= LOGIN_MAX_ATTEMPTS) {
+    update.blockedUntil = now + LOGIN_BLOCK_MS;
+    update.count = 0;
+    update.windowStart = now;
+  }
+
+  await loginAttemptsCollection.updateOne({ _id: ip }, { $set: update }, { upsert: true });
+}
+
+async function clearLoginAttempts(ip) {
+  await loginAttemptsCollection.deleteOne({ _id: ip });
 }
 
 async function readJsonBody(req) {
@@ -371,11 +429,15 @@ async function connectDatabase() {
   productsCollection = database.collection("products");
   settingsCollection = database.collection("settings");
   imagesBucket = new GridFSBucket(database, { bucketName: "productImages" });
+  loginAttemptsCollection = database.collection("loginAttempts");
 
   await productsCollection.createIndex({ id: 1 }, { unique: true });
   await productsCollection.createIndex({ categoryId: 1, model: 1 });
   await productsCollection.createIndex({ mainCategory: 1, subCategory: 1, model: 1 });
   await settingsCollection.createIndex({ key: 1 }, { unique: true });
+  // TTL index: stale login-attempt records auto-expire so the collection
+  // never grows unbounded.
+  await loginAttemptsCollection.createIndex({ expireAt: 1 }, { expireAfterSeconds: 0 });
   await seedCatalogIfNeeded();
 }
 
@@ -540,11 +602,21 @@ async function handleApi(req, res, pathname) {
       return;
     }
 
+    const ip = clientIp(req);
+    const blockedForMs = await getLoginBlock(ip);
+    if (blockedForMs > 0) {
+      const minutes = Math.ceil(blockedForMs / 60000);
+      sendError(res, 429, `Muitas tentativas de login. Tente novamente em ${minutes} min.`);
+      return;
+    }
+
     if (!safePasswordMatch(payload.password || "", configuredPassword)) {
+      await registerFailedLogin(ip);
       sendError(res, 401, "Senha inválida.");
       return;
     }
 
+    await clearLoginAttempts(ip);
     sendJson(res, 200, { token: createToken(), expiresInMs: TOKEN_TTL_MS });
     return;
   }
