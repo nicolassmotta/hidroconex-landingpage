@@ -72,7 +72,12 @@ async function requestJson(path: string, options: RequestInit = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.error || "Não foi possível concluir a operação.");
+    const message =
+      (typeof data?.error === "string" && data.error) ||
+      (typeof data?.error?.message === "string" && data.error.message) ||
+      (typeof data?.message === "string" && data.message) ||
+      `Não foi possível concluir a operação (HTTP ${response.status}).`;
+    throw new Error(message);
   }
 
   return data;
