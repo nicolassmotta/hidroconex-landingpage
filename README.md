@@ -1,87 +1,149 @@
-# Hidroconex - Site Oficial
+# Hidroconex — Site Oficial
 
-Site oficial da Hidroconex com landing page, catálogo público separado e painel administrativo para cadastrar, editar e remover produtos com fotos.
+Site institucional e catálogo de produtos da **Hidroconex Luvas**, com painel
+administrativo para cadastrar, editar e remover produtos (com fotos) sem precisar
+mexer no código.
 
-## Stack
+🔗 **Online:** [hidroconexluvas.com.br](https://hidroconexluvas.com.br/)
 
-- React + Vite + TypeScript no frontend.
-- Tailwind CSS para a interface.
-- Node.js puro no backend, sem Express.
-- MongoDB como banco de dados principal.
-- GridFS do MongoDB para armazenar as fotos enviadas pelo admin.
-- Web3Forms + hCaptcha no formulário de contato.
-- API compatível com servidor Node local e Vercel Functions em produção.
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-backend-339933?logo=node.js&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-GridFS-47A248?logo=mongodb&logoColor=white)
+![Vercel](https://img.shields.io/badge/Deploy-Vercel-000000?logo=vercel&logoColor=white)
 
-## Banco de Dados
+## Funcionalidades
 
-Configure o MongoDB no `.env`:
+- **Landing page institucional** — apresentação da empresa e formulário de contato.
+- **Catálogo público** — produtos organizados por categoria e subcategoria, com imagens.
+- **Painel administrativo** (`/admin`) — login protegido por senha para gerenciar
+  produtos e fotos, com upload de imagens armazenadas no próprio banco.
+- **Formulário de contato** — envio via Web3Forms com proteção anti-spam por hCaptcha.
+- **Segurança** — autenticação por token assinado (HMAC), comparação de senha em
+  tempo constante e rate limiting nas tentativas de login.
 
-```env
-MONGODB_URI="mongodb://127.0.0.1:27017"
-MONGODB_DB_NAME="hidroconex"
-ADMIN_PASSWORD="uma_senha_forte"
-PORT=3333
-IMAGE_LIMIT_MB=3
-VITE_WEB3FORMS_ACCESS_KEY="sua_chave_web3forms"
+## Tecnologias
+
+| Camada      | Tecnologias                                                        |
+| ----------- | ------------------------------------------------------------------ |
+| Frontend    | React 18, TypeScript, Vite                                         |
+| Interface   | Tailwind CSS, shadcn/ui (Radix UI), lucide-react                   |
+| Backend     | Node.js puro (módulo `http` nativo, sem Express)                   |
+| Banco       | MongoDB — dados do catálogo + imagens via GridFS                   |
+| Integrações | Web3Forms + hCaptcha (formulário de contato)                       |
+| Testes      | Vitest + Testing Library                                           |
+| Deploy      | Vercel (frontend estático + API como Serverless Function)          |
+
+## Estrutura do projeto
+
+```
+.
+├── api/            # Entrada da API na Vercel (reaproveita o backend Node)
+├── server/         # Servidor Node + lógica da API (catálogo, admin, imagens)
+├── scripts/        # Scripts de build/dev (ex.: geração do catálogo)
+├── src/
+│   ├── assets/     # Imagens e mídias
+│   ├── components/ # Componentes da UI (admin/, ui/ shadcn, contato, etc.)
+│   ├── data/       # Categorias e catálogo gerado
+│   ├── hooks/      # Hooks reutilizáveis
+│   └── pages/      # Páginas (landing, catálogo, admin)
+├── public/         # Arquivos estáticos
+└── vercel.json     # Rewrites de produção (SPA + API)
 ```
 
-O backend cria automaticamente:
+## Como rodar
 
-- `products`: dados do catálogo.
-- `settings`: controle de seed/migração.
-- `productImages.files` e `productImages.chunks`: imagens via GridFS.
-
-Quando o MongoDB estiver vazio, o backend importa os produtos iniciais do catálogo legado.
-
-## Como Rodar
+**Pré-requisitos:** Node.js 18+ e uma instância do MongoDB (local ou Atlas).
 
 1. Instale as dependências:
 
-```bash
-npm install
+   ```bash
+   npm install
+   ```
+
+2. Crie um arquivo `.env` na raiz (veja a seção abaixo).
+
+3. Garanta que o MongoDB esteja rodando e suba frontend + backend juntos:
+
+   ```bash
+   npm run dev
+   ```
+
+   O site abre em `http://localhost:8080` e a API em `http://localhost:3333`.
+
+Quando o banco está vazio, o backend importa automaticamente os produtos iniciais
+do catálogo legado.
+
+## Variáveis de ambiente
+
+```env
+# Banco de dados
+MONGODB_URI="mongodb://127.0.0.1:27017"
+MONGODB_DB_NAME="hidroconex"
+
+# Admin (obrigatório para acessar o painel)
+ADMIN_PASSWORD="uma_senha_forte"
+
+# Servidor / uploads
+PORT=3333
+IMAGE_LIMIT_MB=8
+
+# Frontend — formulário de contato
+VITE_WEB3FORMS_ACCESS_KEY="sua_chave_web3forms"
 ```
 
-2. Garanta que o MongoDB esteja rodando.
+| Variável                  | Obrigatória | Padrão                | Descrição                                   |
+| ------------------------- | ----------- | --------------------- | ------------------------------------------- |
+| `MONGODB_URI`             | Sim         | `mongodb://127.0.0.1:27017` | String de conexão do MongoDB          |
+| `MONGODB_DB_NAME`         | Não         | `hidroconex`          | Nome do banco                               |
+| `ADMIN_PASSWORD`          | Sim         | —                     | Senha do painel administrativo              |
+| `PORT`                    | Não         | `3333`                | Porta do backend Node                       |
+| `IMAGE_LIMIT_MB`          | Não         | `8` (`3` na Vercel)   | Tamanho máximo de imagem no upload          |
+| `VITE_WEB3FORMS_ACCESS_KEY` | Sim       | —                     | Chave do Web3Forms (formulário de contato)  |
 
-3. Rode frontend e backend juntos:
+Variáveis opcionais de ajuste fino do login também são suportadas:
+`ADMIN_TOKEN_TTL_HOURS`, `LOGIN_MAX_ATTEMPTS`, `LOGIN_WINDOW_MIN`,
+`LOGIN_BLOCK_MIN` e `CORS_ORIGIN`.
 
-```bash
-npm run dev
-```
-
-O site abre em `http://localhost:8080`.
+O backend cria automaticamente as coleções `products`, `settings`,
+`loginAttempts` e os buckets `productImages.*` (GridFS) — não é preciso
+configurá-las manualmente.
 
 ## Rotas
 
-- `/` - landing page institucional.
-- `/catalogo` - catálogo público completo.
-- `/admin` - painel para gerenciar produtos e fotos.
-- `/api/catalog` - API pública do catálogo.
-- `/api/catalog/images/:id` - imagens salvas no MongoDB/GridFS.
-- `/api/health` - status da API e do MongoDB.
+| Rota                       | Descrição                                  |
+| -------------------------- | ------------------------------------------ |
+| `/`                        | Landing page institucional                 |
+| `/catalogo`                | Catálogo público completo                  |
+| `/admin`                   | Painel para gerenciar produtos e fotos     |
+| `/api/catalog`             | API pública do catálogo                    |
+| `/api/catalog/images/:id`  | Imagens servidas do MongoDB/GridFS         |
+| `/api/health`              | Status da API e do MongoDB                 |
 
-## Scripts Úteis
+## Scripts
 
 ```bash
-npm run dev       # API + Vite
+npm run dev       # API + Vite juntos
 npm run dev:web   # somente frontend
 npm run dev:api   # somente backend Node
 npm run build     # build de produção
-npm run start     # serve API e frontend buildado
+npm run start     # serve API + frontend buildado
 npm run lint      # lint
-npm run test      # testes
+npm run test      # testes (Vitest)
 ```
 
-## Produção
+## Deploy (Vercel)
 
-Use uma `MONGODB_URI` de produção, como MongoDB Atlas ou servidor próprio, e configure `ADMIN_PASSWORD` com uma senha forte. As fotos novas não dependem de disco local: ficam no GridFS do MongoDB.
+O frontend é publicado como build Vite e a API roda em `api/[...path].js`,
+reaproveitando o backend Node do projeto. Configure as variáveis pelo painel da
+Vercel:
 
-Na Vercel, configure pelo painel as variáveis:
-
-- `MONGODB_URI`
+- `MONGODB_URI` (use MongoDB Atlas ou outro servidor de produção)
 - `MONGODB_DB_NAME`
-- `ADMIN_PASSWORD`
+- `ADMIN_PASSWORD` (senha forte)
 - `VITE_WEB3FORMS_ACCESS_KEY`
-- `IMAGE_LIMIT_MB` com valor recomendado `3`
+- `IMAGE_LIMIT_MB` (recomendado: `3`)
 
-O frontend é publicado como Vite e a API roda em `api/[...path].js`, reaproveitando o backend Node do projeto.
+As fotos novas não dependem de disco local — ficam no GridFS do MongoDB.

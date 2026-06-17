@@ -1,0 +1,14 @@
+# Atribuição de linguagens na barra "Languages" do GitHub (Linguist).
+# Objetivo: a barra refletir apenas o código escrito à mão neste projeto,
+# ignorando arquivos gerados, bibliotecas vendoradas e tooling.
+
+# Catálogo gerado automaticamente por scripts/generateCatalog.js
+src/data/catalog.ts linguist-generated
+
+# Componentes de UI vendorados do shadcn/ui (biblioteca, não escritos à mão)
+src/components/ui/** linguist-vendored
+
+# Scripts de build e arquivos de configuração de tooling
+scripts/**   linguist-vendored
+*.config.js  linguist-vendored
+*.config.ts  linguist-vendored
