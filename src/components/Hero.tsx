@@ -1,4 +1,4 @@
-import { ArrowRight, Shield, Cog, Award } from "lucide-react";
+import { ArrowRight, Cog, Award, Users } from "lucide-react";
 import heroImage from "@/assets/AI/hero-industrial.jpg";
 
 const Hero = () => {
@@ -54,11 +54,11 @@ const Hero = () => {
           <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6 animate-fade-in-up" style={{ animationDelay: "0.6s" }}>
             <div className="flex items-center gap-3 text-secondary-foreground/80">
               <div className="p-2 bg-primary/20 rounded-lg">
-                <Shield className="w-6 h-6 text-primary" />
+                <Award className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="font-semibold text-secondary-foreground">Qualidade garantida</p>
-                <p className="text-sm text-secondary-foreground/60">Materiais certificados</p>
+                <p className="font-semibold text-secondary-foreground">14 anos de fábrica</p>
+                <p className="text-sm text-secondary-foreground/60">Experiência comprovada</p>
               </div>
             </div>
             <div className="flex items-center gap-3 text-secondary-foreground/80">
@@ -66,17 +66,17 @@ const Hero = () => {
                 <Cog className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="font-semibold text-secondary-foreground">Alta precisão</p>
-                <p className="text-sm text-secondary-foreground/60">Fabricação especializada</p>
+                <p className="font-semibold text-secondary-foreground">Fabricação própria</p>
+                <p className="text-sm text-secondary-foreground/60">Controle de qualidade</p>
               </div>
             </div>
             <div className="flex items-center gap-3 text-secondary-foreground/80">
               <div className="p-2 bg-primary/20 rounded-lg">
-                <Award className="w-6 h-6 text-primary" />
+                <Users className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="font-semibold text-secondary-foreground">Experiência</p>
-                <p className="text-sm text-secondary-foreground/60">Anos no mercado</p>
+                <p className="font-semibold text-secondary-foreground">+150 clientes</p>
+                <p className="text-sm text-secondary-foreground/60">Atendidos na região</p>
               </div>
             </div>
           </div>

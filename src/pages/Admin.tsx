@@ -1,23 +1,30 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   Edit3,
-  ImagePlus,
+  Eye,
+  EyeOff,
   LogOut,
   PackagePlus,
+  Plus,
   RefreshCcw,
   Save,
-  Search,
-  Trash2,
 } from "lucide-react";
-import { catalogCategories, getCategoryMeta } from "@/data/categories";
-import {
-  CatalogItem,
-  fetchCatalog,
-  productSearchText,
-  resolveCatalogImage,
-} from "@/lib/catalog";
+import { catalogCategories } from "@/data/categories";
+import { CatalogItem, fetchCatalog, resolveCatalogImage } from "@/lib/catalog";
+import { useAdminCatalogFilters } from "@/hooks/useAdminCatalogFilters";
+import { toast } from "@/components/ui/sonner";
+import { AdminToolbar } from "@/components/admin/AdminToolbar";
+import { AdminProductCard } from "@/components/admin/AdminProductCard";
+import { AdminProductRow } from "@/components/admin/AdminProductRow";
+import { ImageDropzone } from "@/components/admin/ImageDropzone";
+import { ConfirmDeleteButton } from "@/components/admin/ConfirmDeleteButton";
 
 const TOKEN_KEY = "hidroconex_admin_token";
+const VIEW_KEY = "hidroconex_admin_view";
+/** Client-side soft limit mirroring the backend default; the server stays the source of truth. */
+const IMAGE_LIMIT_MB = 8;
+
+type ViewMode = "grid" | "list";
 
 interface UploadImage {
   data: string;
@@ -86,30 +93,31 @@ async function requestJson(path: string, options: RequestInit = {}) {
 const AdminPage = () => {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [products, setProducts] = useState<CatalogItem[]>([]);
   const [form, setForm] = useState<FormState>(emptyForm);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("todos");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [view, setView] = useState<ViewMode>(
+    () => (localStorage.getItem(VIEW_KEY) as ViewMode) || "grid",
+  );
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  const modelInputRef = useRef<HTMLInputElement>(null);
+  const filters = useAdminCatalogFilters(products);
   const isEditing = Boolean(form.id);
 
-  async function loadProducts(options: { clearMessage?: boolean } = {}) {
-    setIsLoading(true);
-    if (options.clearMessage !== false) {
-      setMessage(null);
-    }
+  useEffect(() => {
+    localStorage.setItem(VIEW_KEY, view);
+  }, [view]);
 
+  async function loadProducts() {
+    setIsLoading(true);
     try {
-      const items = await fetchCatalog();
-      setProducts(items);
+      setProducts(await fetchCatalog());
     } catch (error) {
-      setMessage({
-        type: "error",
-        text: error instanceof Error ? error.message : "Erro ao carregar catálogo.",
-      });
+      toast.error(error instanceof Error ? error.message : "Erro ao carregar catálogo.");
     } finally {
       setIsLoading(false);
     }
@@ -121,23 +129,10 @@ const AdminPage = () => {
     }
   }, [token]);
 
-  const filteredProducts = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-
-    return products.filter((product) => {
-      const matchesCategory =
-        categoryFilter === "todos" || product.categoryId === categoryFilter;
-      const matchesSearch =
-        !normalizedSearch || productSearchText(product).includes(normalizedSearch);
-
-      return matchesCategory && matchesSearch;
-    });
-  }, [categoryFilter, products, searchTerm]);
-
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSaving(true);
-    setMessage(null);
+    setLoginError(null);
 
     try {
       const data = await requestJson("/api/admin/login", {
@@ -148,15 +143,10 @@ const AdminPage = () => {
       localStorage.setItem(TOKEN_KEY, data.token);
       setToken(data.token);
       setPassword("");
-      setMessage({ type: "success", text: "Login realizado com sucesso." });
     } catch (error) {
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível acessar o painel.",
-      });
+      setLoginError(
+        error instanceof Error ? error.message : "Não foi possível acessar o painel.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -167,14 +157,10 @@ const AdminPage = () => {
     setToken("");
     setProducts([]);
     setForm(emptyForm);
+    setSelectedIds(new Set());
   }
 
   function resetForm() {
-    setForm(emptyForm);
-    setMessage(null);
-  }
-
-  function clearForm() {
     setForm(emptyForm);
   }
 
@@ -190,10 +176,20 @@ const AdminPage = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function handleSave(event: FormEvent<HTMLFormElement>) {
+  async function handleSave(
+    event: FormEvent,
+    options: { addAnother?: boolean } = {},
+  ) {
     event.preventDefault();
+
+    if (!isEditing && !form.imageFile) {
+      toast.error("Adicione uma imagem", {
+        description: "Todo produto novo precisa de uma foto.",
+      });
+      return;
+    }
+
     setIsSaving(true);
-    setMessage(null);
 
     try {
       const payload: Record<string, unknown> = {
@@ -212,18 +208,22 @@ const AdminPage = () => {
 
       await requestJson(path, {
         method: isEditing ? "PUT" : "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
 
-      setMessage({
-        type: "success",
-        text: isEditing ? "Produto atualizado com sucesso." : "Produto cadastrado com sucesso.",
-      });
-      clearForm();
-      await loadProducts({ clearMessage: false });
+      toast.success(
+        isEditing ? "Produto atualizado com sucesso." : "Produto cadastrado com sucesso.",
+      );
+
+      if (options.addAnother) {
+        setForm((current) => ({ ...emptyForm, categoryId: current.categoryId }));
+        requestAnimationFrame(() => modelInputRef.current?.focus());
+      } else {
+        resetForm();
+      }
+
+      await loadProducts();
     } catch (error) {
       const isUnauthorized =
         error instanceof Error && /token|sessão|senha|inválido/i.test(error.message);
@@ -232,61 +232,104 @@ const AdminPage = () => {
         logout();
       }
 
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível salvar o produto.",
-      });
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o produto.");
     } finally {
       setIsSaving(false);
     }
   }
 
   async function handleDelete(product: CatalogItem) {
-    const confirmed = window.confirm(`Remover "${product.model}" do catálogo?`);
-    if (!confirmed) return;
-
     setIsSaving(true);
-    setMessage(null);
 
     try {
       await requestJson(`/api/admin/products/${encodeURIComponent(product.id)}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      setMessage({ type: "success", text: "Produto removido do catálogo." });
-      await loadProducts({ clearMessage: false });
-      if (form.id === product.id) {
-        clearForm();
-      }
-    } catch (error) {
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível remover o produto.",
+      toast.success("Produto removido do catálogo.");
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        next.delete(product.id);
+        return next;
       });
+      if (form.id === product.id) {
+        resetForm();
+      }
+      await loadProducts();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível remover o produto.");
     } finally {
       setIsSaving(false);
     }
+  }
+
+  async function handleBulkDelete() {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+
+    setIsSaving(true);
+    let removed = 0;
+    let failed = 0;
+
+    for (const id of ids) {
+      try {
+        await requestJson(`/api/admin/products/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        removed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    setSelectedIds(new Set());
+    setIsSaving(false);
+    await loadProducts();
+
+    if (failed === 0) {
+      toast.success(`${removed} produto(s) removido(s).`);
+    } else {
+      toast.error(`${removed} removido(s), ${failed} não puderam ser removidos.`);
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  const allVisibleSelected =
+    filters.filtered.length > 0 && filters.filtered.every((p) => selectedIds.has(p.id));
+
+  function toggleSelectAllVisible() {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) {
+        filters.filtered.forEach((p) => next.delete(p.id));
+      } else {
+        filters.filtered.forEach((p) => next.add(p.id));
+      }
+      return next;
+    });
   }
 
   if (!token) {
     return (
       <main className="min-h-screen bg-gradient-navy flex items-center justify-center px-4 py-12">
         <section className="w-full max-w-md rounded-lg bg-card border border-border shadow-xl p-8">
-          <a href="/" className="text-sm font-semibold text-primary hover:text-primary/80">
+          <a href="/" className="text-sm font-semibold text-lime-dark hover:text-primary">
             Voltar ao site
           </a>
-          <h1 className="text-3xl font-bold text-foreground mt-6 mb-2">
-            Painel Hidroconex
-          </h1>
+          <h1 className="text-3xl font-bold text-foreground mt-6 mb-2">Painel Hidroconex</h1>
           <p className="text-muted-foreground mb-8">
             Acesse para cadastrar fotos e manter o catálogo atualizado.
           </p>
@@ -296,26 +339,30 @@ const AdminPage = () => {
               <label htmlFor="password" className="block text-sm font-semibold text-foreground mb-2">
                 Senha do administrador
               </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-md border border-border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary/40"
-                autoComplete="current-password"
-                required
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="w-full rounded-md border border-border bg-background px-4 py-3 pr-12 outline-none focus:ring-2 focus:ring-primary/40"
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
 
-            {message && (
-              <div
-                className={`rounded-md px-4 py-3 text-sm font-medium ${
-                  message.type === "success"
-                    ? "bg-green-100 text-green-800"
-                    : "bg-red-100 text-red-800"
-                }`}
-              >
-                {message.text}
+            {loginError && (
+              <div className="rounded-md px-4 py-3 text-sm font-medium bg-red-100 text-red-800">
+                {loginError}
               </div>
             )}
 
@@ -333,7 +380,7 @@ const AdminPage = () => {
   }
 
   return (
-    <main className="min-h-screen bg-muted/30">
+    <main className="min-h-screen bg-muted/30 pb-24">
       <header className="bg-secondary text-secondary-foreground border-b border-white/10">
         <div className="section-container py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -350,7 +397,7 @@ const AdminPage = () => {
               disabled={isLoading}
               className="inline-flex items-center gap-2 rounded-md border border-white/20 px-4 py-3 text-sm font-semibold hover:bg-white/10 transition-colors disabled:opacity-70"
             >
-              <RefreshCcw className="w-4 h-4" />
+              <RefreshCcw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
               Atualizar
             </button>
             <button
@@ -385,7 +432,22 @@ const AdminPage = () => {
             </div>
           </div>
 
-          <form onSubmit={handleSave} className="space-y-5">
+          {isEditing && (
+            <div className="flex items-center justify-between gap-3 rounded-md bg-primary/10 border border-primary/30 px-4 py-3 mb-5">
+              <span className="text-sm text-foreground truncate">
+                Editando: <strong>{form.model || "produto"}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="text-sm font-semibold text-lime-dark hover:text-primary shrink-0"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
+
+          <form onSubmit={(event) => handleSave(event)} className="space-y-5">
             <div>
               <label htmlFor="categoryId" className="block text-sm font-semibold text-foreground mb-2">
                 Categoria
@@ -412,12 +474,13 @@ const AdminPage = () => {
               </label>
               <input
                 id="model"
+                ref={modelInputRef}
                 value={form.model}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, model: event.target.value }))
                 }
                 className="w-full rounded-md border border-border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary/40"
-                placeholder="Ex.: Luva 2&quot; 300lbs"
+                placeholder={'Ex.: Luva 2" 300lbs'}
                 required
               />
             </div>
@@ -439,70 +502,47 @@ const AdminPage = () => {
             </div>
 
             <div>
-              <label htmlFor="image" className="block text-sm font-semibold text-foreground mb-2">
-                Foto do produto
-              </label>
-              <label className="min-h-48 rounded-lg border-2 border-dashed border-border bg-background flex flex-col items-center justify-center gap-3 p-5 cursor-pointer hover:border-primary/60 transition-colors">
-                {form.imagePreview ? (
-                  <img
-                    src={form.imagePreview}
-                    alt="Prévia do produto"
-                    className="max-h-40 max-w-full object-contain"
-                  />
-                ) : (
-                  <>
-                    <ImagePlus className="w-8 h-8 text-primary" />
-                    <span className="text-sm font-medium text-muted-foreground">
-                      Selecionar PNG, JPG ou WebP
-                    </span>
-                  </>
-                )}
-                <input
-                  id="image"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="sr-only"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0] || null;
-                    setForm((current) => ({
-                      ...current,
-                      imageFile: file,
-                      imagePreview: file ? URL.createObjectURL(file) : current.imagePreview,
-                    }));
-                  }}
-                  required={!isEditing}
-                />
-              </label>
+              <span className="block text-sm font-semibold text-foreground mb-2">Foto do produto</span>
+              <ImageDropzone
+                preview={form.imagePreview}
+                maxSizeMb={IMAGE_LIMIT_MB}
+                onFile={(file) =>
+                  setForm((current) => ({
+                    ...current,
+                    imageFile: file,
+                    imagePreview: URL.createObjectURL(file),
+                  }))
+                }
+              />
             </div>
 
-            {message && (
-              <div
-                className={`rounded-md px-4 py-3 text-sm font-medium ${
-                  message.type === "success"
-                    ? "bg-green-100 text-green-800"
-                    : "bg-red-100 text-red-800"
-                }`}
-              >
-                {message.text}
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col gap-3">
               <button
                 type="submit"
                 disabled={isSaving}
-                className="btn-hero flex-1 inline-flex items-center justify-center gap-2 disabled:opacity-70"
+                className="btn-hero inline-flex items-center justify-center gap-2 disabled:opacity-70"
               >
                 <Save className="w-4 h-4" />
                 {isSaving ? "Salvando..." : isEditing ? "Salvar alterações" : "Cadastrar produto"}
               </button>
-              {isEditing && (
+
+              {isEditing ? (
                 <button
                   type="button"
                   onClick={resetForm}
                   className="rounded-md border border-border bg-background px-5 py-3 text-sm font-semibold text-foreground hover:border-primary/50 transition-colors"
                 >
-                  Cancelar
+                  Cancelar edição
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={(event) => handleSave(event, { addAnother: true })}
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-5 py-3 text-sm font-semibold text-foreground hover:border-primary/50 transition-colors disabled:opacity-70"
+                >
+                  <Plus className="w-4 h-4" />
+                  Salvar e adicionar outro
                 </button>
               )}
             </div>
@@ -510,109 +550,95 @@ const AdminPage = () => {
         </section>
 
         <section className="space-y-6">
-          <div className="rounded-lg bg-card border border-border shadow-card p-6">
-            <div className="flex flex-col xl:flex-row gap-4 xl:items-center xl:justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-foreground">Produtos cadastrados</h2>
-                <p className="text-muted-foreground text-sm">
-                  {products.length} itens no catálogo
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
-                <div className="relative sm:min-w-72">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                    type="search"
-                    placeholder="Buscar produto"
-                    className="w-full rounded-md border border-border bg-background pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-                <select
-                  value={categoryFilter}
-                  onChange={(event) => setCategoryFilter(event.target.value)}
-                  className="rounded-md border border-border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary/40"
-                >
-                  <option value="todos">Todas as categorias</option>
-                  {catalogCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">Produtos cadastrados</h2>
+              <p className="text-muted-foreground text-sm">{products.length} itens no catálogo</p>
             </div>
+            <label className="inline-flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleSelectAllVisible}
+                className="w-4 h-4 accent-primary"
+              />
+              Selecionar todos os filtrados
+            </label>
           </div>
+
+          <AdminToolbar
+            filters={filters}
+            view={view}
+            onViewChange={setView}
+            resultCount={filters.filtered.length}
+            totalCount={products.length}
+          />
 
           {isLoading ? (
             <div className="rounded-lg bg-card border border-border p-8 text-center text-muted-foreground">
               Carregando produtos...
             </div>
-          ) : filteredProducts.length > 0 ? (
+          ) : filters.filtered.length === 0 ? (
+            <div className="rounded-lg bg-card border border-dashed border-border p-8 text-center">
+              <h3 className="text-lg font-bold text-foreground mb-2">Nenhum produto encontrado</h3>
+              <p className="text-muted-foreground">
+                {filters.hasActiveFilters
+                  ? "Ajuste a busca ou os filtros para ver outros itens."
+                  : "Cadastre um novo item para começar o catálogo."}
+              </p>
+            </div>
+          ) : view === "grid" ? (
             <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
-              {filteredProducts.map((product) => {
-                const category = getCategoryMeta(product.categoryId);
-
-                return (
-                  <article
-                    key={product.id}
-                    className="rounded-lg bg-card border border-border shadow-card overflow-hidden"
-                  >
-                    <div className="h-44 bg-white p-4 flex items-center justify-center border-b border-border">
-                      <img
-                        src={resolveCatalogImage(product)}
-                        alt={product.model}
-                        className="max-w-full max-h-full object-contain"
-                      />
-                    </div>
-                    <div className="p-5">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-                        {category?.title || product.subCategory}
-                      </span>
-                      <h3 className="text-lg font-bold text-foreground mt-2 mb-2">
-                        {product.model}
-                      </h3>
-                      <p className="text-sm text-muted-foreground min-h-10">
-                        {product.description || `${product.mainCategory} - ${product.subCategory}`}
-                      </p>
-
-                      <div className="flex gap-2 mt-5">
-                        <button
-                          type="button"
-                          onClick={() => startEdit(product)}
-                          className="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2.5 text-sm font-semibold text-secondary-foreground hover:bg-secondary/90 transition-colors"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(product)}
-                          className="inline-flex items-center justify-center rounded-md border border-destructive/30 px-3 py-2.5 text-destructive hover:bg-destructive/10 transition-colors"
-                          aria-label={`Remover ${product.model}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
+              {filters.filtered.map((product) => (
+                <AdminProductCard
+                  key={product.id}
+                  product={product}
+                  isEditing={form.id === product.id}
+                  isSelected={selectedIds.has(product.id)}
+                  busy={isSaving}
+                  onToggleSelect={() => toggleSelect(product.id)}
+                  onEdit={() => startEdit(product)}
+                  onDelete={() => handleDelete(product)}
+                />
+              ))}
             </div>
           ) : (
-            <div className="rounded-lg bg-card border border-dashed border-border p-8 text-center">
-              <h3 className="text-lg font-bold text-foreground mb-2">
-                Nenhum produto encontrado
-              </h3>
-              <p className="text-muted-foreground">
-                Cadastre um novo item ou ajuste os filtros.
-              </p>
+            <div className="space-y-3">
+              {filters.filtered.map((product) => (
+                <AdminProductRow
+                  key={product.id}
+                  product={product}
+                  isEditing={form.id === product.id}
+                  isSelected={selectedIds.has(product.id)}
+                  busy={isSaving}
+                  onToggleSelect={() => toggleSelect(product.id)}
+                  onEdit={() => startEdit(product)}
+                  onDelete={() => handleDelete(product)}
+                />
+              ))}
             </div>
           )}
         </section>
       </div>
+
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 rounded-lg bg-secondary text-secondary-foreground shadow-xl px-5 py-3">
+          <span className="text-sm font-medium">{selectedIds.size} selecionado(s)</span>
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className="text-sm text-secondary-foreground/70 hover:text-secondary-foreground transition-colors"
+          >
+            Limpar
+          </button>
+          <ConfirmDeleteButton
+            variant="full"
+            onConfirm={handleBulkDelete}
+            ariaLabel="Excluir selecionados"
+            disabled={isSaving}
+          />
+        </div>
+      )}
     </main>
   );
 };
