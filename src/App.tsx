@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { initFailureMonitoring } from "@/lib/failureMonitoring";
 
 import AdminPage from "./pages/Admin";
 import CatalogPage from "./pages/Catalog";
@@ -12,6 +14,10 @@ function getRoute() {
 
 const App = () => {
   const route = getRoute();
+
+  useEffect(() => {
+    initFailureMonitoring();
+  }, []);
 
   return (
     <TooltipProvider>

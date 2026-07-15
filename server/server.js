@@ -83,6 +83,14 @@ const CONTACT_PHONE_MAX_LENGTH = 40;
 const CONTACT_EMAIL_MAX_LENGTH = 160;
 const CONTACT_MESSAGE_MAX_LENGTH = 2000;
 const WEB3FORMS_ENDPOINT = "https://api.web3forms.com/submit";
+const CONFIGURED_FAILURE_EVENT_TTL_DAYS = Number(process.env.FAILURE_EVENT_TTL_DAYS || 14);
+const FAILURE_EVENT_TTL_DAYS =
+  Number.isFinite(CONFIGURED_FAILURE_EVENT_TTL_DAYS) && CONFIGURED_FAILURE_EVENT_TTL_DAYS > 0
+    ? Math.min(CONFIGURED_FAILURE_EVENT_TTL_DAYS, 90)
+    : 14;
+const FAILURE_EVENT_TTL_MS = FAILURE_EVENT_TTL_DAYS * 24 * 60 * 60 * 1000;
+const FAILURE_EVENT_MESSAGE_MAX_LENGTH = 500;
+const FAILURE_EVENT_STACK_MAX_LENGTH = 2000;
 
 const CATEGORY_MAP = {
   "rm-luvas": { mainCategory: "Reservatórios Metálicos", subCategory: "Luvas" },
@@ -108,6 +116,7 @@ let imagesBucket;
 let loginAttemptsCollection;
 let adminSessionsCollection;
 let contactAttemptsCollection;
+let failureEventsCollection;
 let databaseReadyPromise;
 
 function loadEnv(filePath) {
@@ -338,11 +347,111 @@ async function requireAdmin(req, res) {
 }
 
 function clientIp(req) {
-  const forwarded = req.headers["x-forwarded-for"];
+  const forwarded = req?.headers?.["x-forwarded-for"];
   if (typeof forwarded === "string" && forwarded.length > 0) {
     return forwarded.split(",")[0].trim();
   }
-  return req.socket?.remoteAddress || "unknown";
+  return req?.socket?.remoteAddress || "unknown";
+}
+
+function truncateText(value, maxLength) {
+  const text = String(value || "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
+}
+
+function ipHash(ip) {
+  return crypto.createHash("sha256").update(String(ip || "unknown")).digest("hex");
+}
+
+function statusCodeFromError(error) {
+  const statusCode = Number(error?.statusCode || error?.status || 500);
+  return Number.isInteger(statusCode) && statusCode >= 400 && statusCode <= 599 ? statusCode : 500;
+}
+
+function validateFailurePayload(payload) {
+  payload = payload && typeof payload === "object" ? payload : {};
+  const message = truncateText(payload.message, FAILURE_EVENT_MESSAGE_MAX_LENGTH);
+  if (!message) return { ok: false, message: "Informe a mensagem da falha." };
+
+  const severity = payload.severity === "warning" ? "warning" : "error";
+
+  return {
+    ok: true,
+    event: {
+      source: "frontend",
+      severity,
+      type: truncateText(payload.type || "runtime", 80) || "runtime",
+      message,
+      stack: truncateText(payload.stack, FAILURE_EVENT_STACK_MAX_LENGTH),
+      route: truncateText(payload.route, 240),
+      component: truncateText(payload.component, 120),
+    },
+  };
+}
+
+function serializeFailureEvent(event) {
+  return {
+    id: String(event._id),
+    source: event.source || "api",
+    severity: event.severity || "error",
+    type: event.type || "exception",
+    method: event.method || "",
+    route: event.route || "",
+    statusCode: event.statusCode || null,
+    message: event.message || "",
+    stack: event.stack || "",
+    component: event.component || "",
+    userAgent: event.userAgent || "",
+    createdAt: event.createdAt?.toISOString?.() || event.createdAt,
+  };
+}
+
+async function recordFailureEvent(req, event) {
+  if (!failureEventsCollection) return;
+
+  const now = new Date();
+  const document = {
+    source: event.source || "api",
+    severity: event.severity || "error",
+    type: event.type || "exception",
+    method: event.method || req?.method || "",
+    route: truncateText(event.route || "", 240),
+    statusCode: event.statusCode || null,
+    message: truncateText(event.message, FAILURE_EVENT_MESSAGE_MAX_LENGTH),
+    stack: truncateText(event.stack, FAILURE_EVENT_STACK_MAX_LENGTH),
+    component: truncateText(event.component, 120),
+    userAgent: truncateText(req?.headers?.["user-agent"], 300),
+    ipHash: ipHash(clientIp(req || {})),
+    createdAt: now,
+    expireAt: new Date(now.getTime() + FAILURE_EVENT_TTL_MS),
+  };
+
+  try {
+    await failureEventsCollection.insertOne(document);
+  } catch (error) {
+    console.warn("Não foi possível registrar falha:", error.message);
+  }
+}
+
+async function failureSummary(limit = 20) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 50);
+  const now = Date.now();
+  const since24h = new Date(now - 24 * 60 * 60 * 1000);
+  const since7d = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+  const [events, count24h, count7d] = await Promise.all([
+    failureEventsCollection.find({}).sort({ createdAt: -1 }).limit(safeLimit).toArray(),
+    failureEventsCollection.countDocuments({ createdAt: { $gte: since24h } }),
+    failureEventsCollection.countDocuments({ createdAt: { $gte: since7d } }),
+  ]);
+
+  return {
+    ttlDays: FAILURE_EVENT_TTL_DAYS,
+    count24h,
+    count7d,
+    lastFailureAt: events[0]?.createdAt?.toISOString?.() || null,
+    events: events.map(serializeFailureEvent),
+  };
 }
 
 /** Returns remaining block time in ms (0 when the IP is allowed to try). */
@@ -706,6 +815,7 @@ async function connectDatabase() {
   loginAttemptsCollection = database.collection("loginAttempts");
   adminSessionsCollection = database.collection("adminSessions");
   contactAttemptsCollection = database.collection("contactAttempts");
+  failureEventsCollection = database.collection("failureEvents");
 
   await productsCollection.createIndex({ id: 1 }, { unique: true });
   await productsCollection.createIndex({ categoryId: 1, model: 1 });
@@ -717,6 +827,8 @@ async function connectDatabase() {
   await adminSessionsCollection.createIndex({ tokenHash: 1 }, { unique: true });
   await adminSessionsCollection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
   await contactAttemptsCollection.createIndex({ expireAt: 1 }, { expireAfterSeconds: 0 });
+  await failureEventsCollection.createIndex({ createdAt: -1 });
+  await failureEventsCollection.createIndex({ expireAt: 1 }, { expireAfterSeconds: 0 });
   await seedCatalogIfNeeded();
 }
 
@@ -1042,7 +1154,27 @@ async function handleApi(req, res, pathname) {
   }
 
   if (req.method === "GET" && pathname === "/api/config") {
-    sendJson(res, 200, { imageLimitMb: IMAGE_LIMIT_MB });
+    sendJson(res, 200, {
+      imageLimitMb: IMAGE_LIMIT_MB,
+      modelMaxLength: MODEL_MAX_LENGTH,
+      descriptionMaxLength: DESCRIPTION_MAX_LENGTH,
+    });
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/monitoring/failures") {
+    const payload = await readJsonBody(req);
+    const validation = validateFailurePayload(payload);
+    if (!validation.ok) {
+      sendError(res, 400, validation.message);
+      return;
+    }
+
+    await recordFailureEvent(req, {
+      ...validation.event,
+      route: validation.event.route || req.headers.referer || "",
+    });
+    sendJson(res, 202, { ok: true });
     return;
   }
 
@@ -1120,6 +1252,13 @@ async function handleApi(req, res, pathname) {
     await destroyAdminSession(req);
     clearAdminSessionCookie(req, res);
     sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (req.method === "GET" && pathname === "/api/admin/failures") {
+    if (!(await requireAdmin(req, res))) return;
+    const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+    sendJson(res, 200, await failureSummary(url.searchParams.get("limit") || 20));
     return;
   }
 
@@ -1346,6 +1485,7 @@ async function serveStatic(req, res, pathname) {
 }
 
 const server = http.createServer(async (req, res) => {
+  let pathname = "/";
   try {
     setSecurityHeaders(res);
     setCorsHeaders(req, res);
@@ -1357,7 +1497,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
-    const pathname = decodeURIComponent(url.pathname);
+    pathname = decodeURIComponent(url.pathname);
 
     if (pathname.startsWith("/api/")) {
       await handleApiRequest(req, res, pathname);
@@ -1367,8 +1507,21 @@ const server = http.createServer(async (req, res) => {
     await serveStatic(req, res, pathname);
   } catch (error) {
     console.error(error);
+    const statusCode = statusCodeFromError(error);
+    if (pathname.startsWith("/api/") && statusCode >= 500) {
+      await recordFailureEvent(req, {
+        source: "api",
+        severity: "error",
+        type: "exception",
+        method: req.method,
+        route: pathname,
+        statusCode,
+        message: error.message || "Erro interno.",
+        stack: error.stack || "",
+      });
+    }
     if (!res.headersSent) {
-      sendError(res, error.statusCode || 500, error.message || "Erro interno.");
+      sendError(res, statusCode, error.message || "Erro interno.");
     } else {
       res.end();
     }
@@ -1401,6 +1554,7 @@ export const __test__ = {
   routeUsesDatabase,
   stripImageMetadata,
   validateContactPayload,
+  validateFailurePayload,
   validateProductPayload,
 };
 

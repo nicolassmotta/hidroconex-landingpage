@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   Edit3,
   Eye,
@@ -15,11 +15,21 @@ import {
   CatalogItem,
   fetchAppConfig,
   fetchCatalog,
+  normalizeSearchText,
   resolveCatalogImage,
 } from "@/lib/catalog";
-import { useAdminCatalogFilters } from "@/hooks/useAdminCatalogFilters";
+import {
+  formatDate,
+  productHasDescription,
+  productHasImage,
+  useAdminCatalogFilters,
+} from "@/hooks/useAdminCatalogFilters";
 import { toast } from "@/components/ui/sonner";
 import { AdminToolbar } from "@/components/admin/AdminToolbar";
+import {
+  AdminFailurePanel,
+  AdminFailureSummary,
+} from "@/components/admin/AdminFailurePanel";
 import { AdminProductCard } from "@/components/admin/AdminProductCard";
 import { AdminProductRow } from "@/components/admin/AdminProductRow";
 import { ImageDropzone } from "@/components/admin/ImageDropzone";
@@ -27,6 +37,8 @@ import { ConfirmDeleteButton } from "@/components/admin/ConfirmDeleteButton";
 
 const VIEW_KEY = "hidroconex_admin_view";
 const ADMIN_PRODUCTS_ID = "admin-products";
+const DEFAULT_MODEL_MAX_LENGTH = 120;
+const DEFAULT_DESCRIPTION_MAX_LENGTH = 1000;
 
 type ViewMode = "grid" | "list";
 
@@ -129,6 +141,13 @@ const AdminPage = () => {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [imageLimitMb, setImageLimitMb] = useState(ADMIN_IMAGE_LIMIT_MB);
+  const [modelMaxLength, setModelMaxLength] = useState(DEFAULT_MODEL_MAX_LENGTH);
+  const [descriptionMaxLength, setDescriptionMaxLength] = useState(
+    DEFAULT_DESCRIPTION_MAX_LENGTH,
+  );
+  const [failureSummary, setFailureSummary] = useState<AdminFailureSummary | null>(null);
+  const [failureError, setFailureError] = useState<string | null>(null);
+  const [isLoadingFailures, setIsLoadingFailures] = useState(false);
   const [view, setView] = useState<ViewMode>(
     () => (localStorage.getItem(VIEW_KEY) as ViewMode) || "grid",
   );
@@ -137,6 +156,45 @@ const AdminPage = () => {
   const modelInputRef = useRef<HTMLInputElement>(null);
   const filters = useAdminCatalogFilters(products);
   const isEditing = Boolean(form.id);
+  const modelLength = form.model.length;
+  const descriptionLength = form.description.length;
+  const canSave =
+    Boolean(form.model.trim()) &&
+    modelLength <= modelMaxLength &&
+    descriptionLength <= descriptionMaxLength &&
+    !isSaving;
+
+  const catalogStats = useMemo(() => {
+    const noImage = products.filter((product) => !productHasImage(product)).length;
+    const noDescription = products.filter((product) => !productHasDescription(product)).length;
+    const updatedAt = products
+      .map((product) => new Date(product.updatedAt || 0).getTime())
+      .filter((time) => Number.isFinite(time) && time > 0)
+      .sort((a, b) => b - a)[0];
+
+    return {
+      noImage,
+      noDescription,
+      complete: products.length - products.filter(
+        (product) => !productHasImage(product) || !productHasDescription(product),
+      ).length,
+      lastUpdated: updatedAt ? new Date(updatedAt).toISOString() : "",
+    };
+  }, [products]);
+
+  const duplicateProduct = useMemo(() => {
+    const model = normalizeSearchText(form.model);
+    if (!model) return null;
+
+    return (
+      products.find(
+        (product) =>
+          product.id !== form.id &&
+          product.categoryId === form.categoryId &&
+          normalizeSearchText(product.model) === model,
+      ) || null
+    );
+  }, [form.categoryId, form.id, form.model, products]);
 
   useEffect(() => {
     if (!isBlobPreview(form.imagePreview)) return;
@@ -155,6 +213,8 @@ const AdminPage = () => {
     fetchAppConfig().then((config) => {
       if (isMounted) {
         setImageLimitMb(config.imageLimitMb);
+        setModelMaxLength(config.modelMaxLength);
+        setDescriptionMaxLength(config.descriptionMaxLength);
       }
     });
 
@@ -176,6 +236,30 @@ const AdminPage = () => {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function loadFailureSummary() {
+    setIsLoadingFailures(true);
+    setFailureError(null);
+
+    try {
+      const summary = await requestJson("/api/admin/failures?limit=10");
+      setFailureSummary(summary as AdminFailureSummary);
+    } catch (error) {
+      if (isAuthError(error)) {
+        await logout("Sessão expirada. Faça login novamente.");
+        return;
+      }
+
+      setFailureError(getErrorMessage(error, "Não foi possível carregar o monitoramento."));
+    } finally {
+      setIsLoadingFailures(false);
+    }
+  }
+
+  function refreshAdminData() {
+    void loadProducts();
+    void loadFailureSummary();
   }
 
   useEffect(() => {
@@ -207,8 +291,10 @@ const AdminPage = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      loadProducts();
+      refreshAdminData();
     }
+    // Recarrega dados apenas quando o estado de autenticação muda.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
@@ -240,6 +326,8 @@ const AdminPage = () => {
     setForm(emptyForm);
     setSelectedIds(new Set());
     setLoadError(null);
+    setFailureSummary(null);
+    setFailureError(null);
     setLoginError(nextLoginError);
   }
 
@@ -272,6 +360,22 @@ const AdminPage = () => {
     options: { addAnother?: boolean } = {},
   ) {
     event.preventDefault();
+
+    if (!form.model.trim()) {
+      toast.error("Informe o modelo do produto.");
+      modelInputRef.current?.focus();
+      return;
+    }
+
+    if (modelLength > modelMaxLength) {
+      toast.error(`Modelo muito longo. Use até ${modelMaxLength} caracteres.`);
+      return;
+    }
+
+    if (descriptionLength > descriptionMaxLength) {
+      toast.error(`Descrição muito longa. Use até ${descriptionMaxLength} caracteres.`);
+      return;
+    }
 
     if (!isEditing && !form.imageFile) {
       toast.error("Adicione uma imagem", {
@@ -400,6 +504,7 @@ const AdminPage = () => {
 
   const allVisibleSelected =
     filters.filtered.length > 0 && filters.filtered.every((p) => selectedIds.has(p.id));
+  const selectedVisibleCount = filters.filtered.filter((product) => selectedIds.has(product.id)).length;
 
   function toggleSelectAllVisible() {
     setSelectedIds((current) => {
@@ -504,11 +609,11 @@ const AdminPage = () => {
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => loadProducts()}
-              disabled={isLoading}
+              onClick={refreshAdminData}
+              disabled={isLoading || isLoadingFailures}
               className="inline-flex items-center gap-2 rounded-md border border-white/20 px-4 py-3 text-sm font-semibold hover:bg-white/10 transition-colors disabled:opacity-70"
             >
-              <RefreshCcw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+              <RefreshCcw className={`w-4 h-4 ${isLoading || isLoadingFailures ? "animate-spin" : ""}`} />
               Atualizar
             </button>
             <button
@@ -523,8 +628,28 @@ const AdminPage = () => {
         </div>
       </header>
 
-      <div className="section-container py-10 grid lg:grid-cols-[420px_1fr] gap-8 items-start">
-        <section className="rounded-lg bg-card border border-border shadow-card p-6 lg:sticky lg:top-6">
+      <div className="section-container py-10 space-y-6">
+        <AdminFailurePanel
+          summary={failureSummary}
+          isLoading={isLoadingFailures}
+          error={failureError}
+          onRefresh={() => void loadFailureSummary()}
+        />
+
+        <section className="grid gap-3 md:grid-cols-4">
+          <AdminMetric label="Total no catálogo" value={products.length} />
+          <AdminMetric label="Completos" value={catalogStats.complete} tone="ok" />
+          <AdminMetric label="Sem foto" value={catalogStats.noImage} tone={catalogStats.noImage ? "warning" : "ok"} />
+          <AdminMetric
+            label="Sem descrição"
+            value={catalogStats.noDescription}
+            tone={catalogStats.noDescription ? "warning" : "ok"}
+            detail={`Última atualização: ${formatDate(catalogStats.lastUpdated)}`}
+          />
+        </section>
+
+        <div className="grid lg:grid-cols-[420px_1fr] gap-8 items-start">
+          <section className="rounded-lg bg-card border border-border shadow-card p-6 lg:sticky lg:top-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
               {isEditing ? (
@@ -569,6 +694,7 @@ const AdminPage = () => {
                 onChange={(event) =>
                   setForm((current) => ({ ...current, categoryId: event.target.value }))
                 }
+                disabled={isSaving}
                 className="w-full rounded-md border border-border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary/40"
               >
                 {catalogCategories.map((category) => (
@@ -590,10 +716,23 @@ const AdminPage = () => {
                 onChange={(event) =>
                   setForm((current) => ({ ...current, model: event.target.value }))
                 }
+                maxLength={modelMaxLength}
+                disabled={isSaving}
                 className="w-full rounded-md border border-border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary/40"
                 placeholder={'Ex.: Luva 2" 300lbs'}
+                aria-describedby="model-help"
                 required
               />
+              <div id="model-help" className="mt-2 flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between">
+                <span className={duplicateProduct ? "text-amber-700" : "text-muted-foreground"}>
+                  {duplicateProduct
+                    ? `Já existe um produto parecido nesta categoria: ${duplicateProduct.model}.`
+                    : "Use o nome técnico exatamente como deve aparecer no catálogo."}
+                </span>
+                <span className={modelLength > modelMaxLength ? "text-red-700" : "text-muted-foreground"}>
+                  {modelLength}/{modelMaxLength}
+                </span>
+              </div>
             </div>
 
             <div>
@@ -607,9 +746,18 @@ const AdminPage = () => {
                   setForm((current) => ({ ...current, description: event.target.value }))
                 }
                 rows={4}
+                maxLength={descriptionMaxLength}
+                disabled={isSaving}
                 className="w-full rounded-md border border-border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary/40 resize-none"
                 placeholder="Descrição curta do produto ou aplicação."
+                aria-describedby="description-help"
               />
+              <div id="description-help" className="mt-2 flex items-center justify-between gap-3 text-xs">
+                <span className="text-muted-foreground">Ajuda o cliente a identificar aplicação, rosca e acabamento.</span>
+                <span className={descriptionLength > descriptionMaxLength ? "text-red-700" : "text-muted-foreground"}>
+                  {descriptionLength}/{descriptionMaxLength}
+                </span>
+              </div>
             </div>
 
             <div>
@@ -617,6 +765,7 @@ const AdminPage = () => {
               <ImageDropzone
                 preview={form.imagePreview}
                 maxSizeMb={imageLimitMb}
+                disabled={isSaving}
                 onFile={handleImageFile}
               />
             </div>
@@ -624,7 +773,7 @@ const AdminPage = () => {
             <div className="flex flex-col gap-3">
               <button
                 type="submit"
-                disabled={isSaving}
+                disabled={!canSave}
                 className="btn-hero inline-flex items-center justify-center gap-2 disabled:opacity-70"
               >
                 <Save className="w-4 h-4" />
@@ -642,7 +791,7 @@ const AdminPage = () => {
               ) : (
                 <button
                   type="button"
-                  disabled={isSaving}
+                  disabled={!canSave}
                   onClick={(event) => handleSave(event, { addAnother: true })}
                   className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-5 py-3 text-sm font-semibold text-foreground hover:border-primary/50 transition-colors disabled:opacity-70"
                 >
@@ -665,10 +814,13 @@ const AdminPage = () => {
                 type="checkbox"
                 checked={allVisibleSelected}
                 onChange={toggleSelectAllVisible}
+                disabled={filters.filtered.length === 0}
                 className="w-4 h-4 accent-primary"
                 aria-controls={ADMIN_PRODUCTS_ID}
               />
-              Selecionar todos os filtrados
+              {allVisibleSelected
+                ? `Limpar ${selectedVisibleCount} filtrado(s)`
+                : `Selecionar ${filters.filtered.length} filtrado(s)`}
             </label>
           </div>
 
@@ -751,6 +903,7 @@ const AdminPage = () => {
           </div>
         </section>
       </div>
+      </div>
 
       {selectedIds.size > 0 && (
         <div className="fixed bottom-5 left-3 right-3 z-40 flex flex-wrap items-center justify-center gap-3 rounded-lg bg-secondary text-secondary-foreground shadow-xl px-4 py-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:flex-nowrap sm:gap-4 sm:px-5">
@@ -773,5 +926,30 @@ const AdminPage = () => {
     </main>
   );
 };
+
+function AdminMetric({
+  label,
+  value,
+  tone,
+  detail,
+}: {
+  label: string;
+  value: number | string;
+  tone?: "ok" | "warning";
+  detail?: string;
+}) {
+  const toneClass =
+    tone === "ok" ? "text-green-700" : tone === "warning" ? "text-amber-700" : "text-foreground";
+
+  return (
+    <div className="rounded-lg bg-card border border-border shadow-card px-5 py-4">
+      <span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <strong className={`mt-1 block text-2xl font-bold ${toneClass}`}>{value}</strong>
+      {detail ? <span className="mt-1 block text-xs text-muted-foreground">{detail}</span> : null}
+    </div>
+  );
+}
 
 export default AdminPage;

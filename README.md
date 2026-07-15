@@ -102,6 +102,7 @@ WEB3FORMS_ACCESS_KEY="sua_chave_web3forms"
 | `PORT`                    | Não         | `3333`                | Porta do backend Node                       |
 | `IMAGE_LIMIT_MB`          | Não         | `8` (`3` na Vercel)   | Tamanho máximo de imagem no upload          |
 | `WEB3FORMS_ACCESS_KEY`     | Sim       | —                     | Chave do Web3Forms usada pela API de contato |
+| `FAILURE_EVENT_TTL_DAYS`  | Não         | `14`                  | Retenção dos eventos de falha no admin      |
 
 Variáveis opcionais de ajuste fino do login e do contato também são suportadas:
 `ADMIN_TOKEN_TTL_HOURS`, `LOGIN_MAX_ATTEMPTS`, `LOGIN_WINDOW_MIN`,
@@ -111,8 +112,8 @@ Variáveis opcionais de ajuste fino do login e do contato também são suportada
 envia para `/api/contact`, então a chave do Web3Forms não é exposta no bundle.
 
 O backend cria automaticamente as coleções `products`, `settings`,
-`loginAttempts`, `adminSessions` e os buckets `productImages.*` (GridFS) — não é preciso
-configurá-las manualmente.
+`loginAttempts`, `adminSessions`, `contactAttempts`, `failureEvents` e os
+buckets `productImages.*` (GridFS) — não é preciso configurá-las manualmente.
 
 ## Rotas
 
@@ -124,6 +125,8 @@ configurá-las manualmente.
 | `/api/catalog`             | API pública do catálogo                    |
 | `/api/catalog/images/:id`  | Imagens servidas do MongoDB/GridFS         |
 | `/api/contact`             | Envio do formulário de contato             |
+| `/api/monitoring/failures` | Registro de falhas do frontend             |
+| `/api/admin/failures`      | Resumo de falhas para o painel admin       |
 | `/api/health`              | Status leve da API                         |
 | `/api/ready`               | Status da API com checagem do MongoDB      |
 

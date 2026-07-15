@@ -42,3 +42,72 @@ test("public pages render and catalog search filters products", async ({ page })
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: /painel hidroconex/i })).toBeVisible();
 });
+
+test("authenticated admin renders monitoring and catalog controls", async ({ page }) => {
+  await page.route("**/api/config", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ imageLimitMb: 3, modelMaxLength: 120, descriptionMaxLength: 1000 }),
+    });
+  });
+
+  await page.route("**/api/admin/session", async (route) => {
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true }) });
+  });
+
+  await page.route("**/api/admin/failures**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        ttlDays: 14,
+        count24h: 1,
+        count7d: 1,
+        lastFailureAt: "2026-07-15T12:00:00.000Z",
+        events: [
+          {
+            id: "failure-1",
+            source: "api",
+            severity: "error",
+            type: "exception",
+            method: "POST",
+            route: "/api/contact",
+            statusCode: 500,
+            message: "Falha simulada no contato",
+            createdAt: "2026-07-15T12:00:00.000Z",
+          },
+        ],
+      }),
+    });
+  });
+
+  await page.route("**/api/catalog", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        products: [
+          {
+            id: "ts-luvas-luva-2",
+            categoryId: "ts-luvas",
+            mainCategory: "Tanques Subterrâneos",
+            subCategory: "Luvas",
+            model: "Luva 2\"",
+            importPath: "",
+            description: "",
+            updatedAt: "2026-07-15T12:00:00.000Z",
+          },
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/admin");
+
+  await expect(page.getByRole("heading", { name: /admin do catálogo/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /saúde do sistema/i })).toBeVisible();
+  await expect(page.getByText("Falha simulada no contato")).toBeVisible();
+  await expect(page.getByText("Sem foto").first()).toBeVisible();
+  await expect(page.getByText("Sem descrição").first()).toBeVisible();
+
+  await page.getByLabel("Modelo").fill('Luva 2"');
+  await expect(page.getByText(/já existe um produto parecido/i)).toBeVisible();
+});

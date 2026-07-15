@@ -20,9 +20,13 @@ interface FetchCatalogOptions {
 
 export interface AppConfig {
   imageLimitMb: number;
+  modelMaxLength: number;
+  descriptionMaxLength: number;
 }
 
 const configuredImageLimitMb = Number(import.meta.env.VITE_IMAGE_LIMIT_MB);
+const DEFAULT_MODEL_MAX_LENGTH = 120;
+const DEFAULT_DESCRIPTION_MAX_LENGTH = 1000;
 
 /**
  * Mirrors the API upload limit used in production. When the backend IMAGE_LIMIT_MB
@@ -34,6 +38,10 @@ export const ADMIN_IMAGE_LIMIT_MB =
     : 3;
 
 function validImageLimit(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function validPositiveNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
@@ -188,9 +196,19 @@ export async function fetchAppConfig(): Promise<AppConfig> {
       imageLimitMb: validImageLimit(data?.imageLimitMb)
         ? data.imageLimitMb
         : ADMIN_IMAGE_LIMIT_MB,
+      modelMaxLength: validPositiveNumber(data?.modelMaxLength)
+        ? data.modelMaxLength
+        : DEFAULT_MODEL_MAX_LENGTH,
+      descriptionMaxLength: validPositiveNumber(data?.descriptionMaxLength)
+        ? data.descriptionMaxLength
+        : DEFAULT_DESCRIPTION_MAX_LENGTH,
     };
   } catch {
-    return { imageLimitMb: ADMIN_IMAGE_LIMIT_MB };
+    return {
+      imageLimitMb: ADMIN_IMAGE_LIMIT_MB,
+      modelMaxLength: DEFAULT_MODEL_MAX_LENGTH,
+      descriptionMaxLength: DEFAULT_DESCRIPTION_MAX_LENGTH,
+    };
   }
 }
 

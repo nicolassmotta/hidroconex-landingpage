@@ -9,6 +9,7 @@ interface ImageDropzoneProps {
   preview: string;
   maxSizeMb: number;
   onFile: (file: File) => void;
+  disabled?: boolean;
 }
 
 /**
@@ -16,12 +17,13 @@ interface ImageDropzoneProps {
  * size on the client so the admin gets an immediate, friendly message instead
  * of a server rejection after the upload.
  */
-export function ImageDropzone({ preview, maxSizeMb, onFile }: ImageDropzoneProps) {
+export function ImageDropzone({ preview, maxSizeMb, onFile, disabled = false }: ImageDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const inputId = useId();
   const helpId = `${inputId}-help`;
 
   function validateAndSend(file: File | null) {
+    if (disabled) return;
     if (!file) return;
 
     if (!ACCEPTED_TYPES.includes(file.type)) {
@@ -58,6 +60,7 @@ export function ImageDropzone({ preview, maxSizeMb, onFile }: ImageDropzoneProps
       onDrop={handleDrop}
       className={cn(
         "min-h-48 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-3 p-5 cursor-pointer transition-colors text-center focus-within:ring-2 focus-within:ring-primary/40",
+        disabled && "cursor-not-allowed opacity-70",
         isDragging
           ? "border-primary bg-primary/5"
           : "border-border bg-background hover:border-primary/60",
@@ -98,6 +101,7 @@ export function ImageDropzone({ preview, maxSizeMb, onFile }: ImageDropzoneProps
         type="file"
         accept="image/png,image/jpeg,image/webp"
         className="sr-only"
+        disabled={disabled}
         aria-label={preview ? "Trocar foto do produto" : "Selecionar foto do produto"}
         aria-describedby={helpId}
         onChange={(event) => validateAndSend(event.target.files?.[0] || null)}

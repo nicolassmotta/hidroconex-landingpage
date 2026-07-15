@@ -8,6 +8,7 @@ describe("server helpers", () => {
     expect(__test__.routeUsesDatabase("GET", "/api/config")).toBe(false);
     expect(__test__.routeUsesDatabase("GET", "/api/ready")).toBe(true);
     expect(__test__.routeUsesDatabase("GET", "/api/catalog")).toBe(true);
+    expect(__test__.routeUsesDatabase("POST", "/api/monitoring/failures")).toBe(true);
   });
 
   it("validates product payloads", () => {
@@ -55,5 +56,18 @@ describe("server helpers", () => {
     expect(__test__.detectImageType(jpg)).toMatchObject({ contentType: "image/jpeg" });
     expect(__test__.detectImageType(webp)).toMatchObject({ contentType: "image/webp" });
     expect(() => __test__.decodeBase64Image("not base64")).toThrow("Imagem inválida.");
+  });
+
+  it("validates frontend failure reports", () => {
+    expect(
+      __test__.validateFailurePayload({
+        source: "frontend",
+        message: "Erro no catálogo",
+        route: "/catalogo",
+        stack: "stack".repeat(800),
+      }),
+    ).toMatchObject({ ok: true });
+
+    expect(__test__.validateFailurePayload({ message: "" })).toMatchObject({ ok: false });
   });
 });
