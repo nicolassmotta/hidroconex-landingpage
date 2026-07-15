@@ -99,16 +99,16 @@ const Contact = () => {
 
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
           <div className="space-y-6">
-            <dl className="border-y border-border bg-background py-2">
+            <dl className="card-industrial overflow-hidden bg-card">
               {contactDetails.map((item) => (
                 <div
                   key={item.label}
-                  className="grid gap-2 border-b border-border py-5 last:border-b-0 sm:grid-cols-[130px_1fr]"
+                  className="grid gap-2 border-b border-border px-6 py-5 last:border-b-0 sm:grid-cols-[140px_1fr]"
                 >
                   <dt className="text-xs font-bold uppercase tracking-[0.2em] text-lime-dark">
                     {item.label}
                   </dt>
-                  <dd className="text-muted-foreground">{item.value}</dd>
+                  <dd className="text-foreground/80">{item.value}</dd>
                 </div>
               ))}
             </dl>
