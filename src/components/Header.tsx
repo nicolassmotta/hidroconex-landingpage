@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import logo from "@/assets/Logo/logo-hidroconex.jpeg";
+import BrandLogo from "@/components/BrandLogo";
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -29,24 +29,31 @@ const Header = () => {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed left-0 right-0 top-0 z-50 transition-all duration-300 ${
         isScrolled || isMobileMenuOpen
-          ? "bg-card/95 backdrop-blur-md shadow-lg"
-          : "bg-transparent"
+          ? "bg-card/95 shadow-lg backdrop-blur-md"
+          : "bg-secondary/15 backdrop-blur-[2px]"
       }`}
     >
       <div className="section-container">
         <div className="flex items-center justify-between h-20">
           <a href="/#inicio" className="flex items-center" aria-label="Hidroconex">
-            <img src={logo} alt="Hidroconex" className="h-14 w-auto" />
+            <BrandLogo
+              className={
+                isScrolled || isMobileMenuOpen
+                  ? "bg-white shadow-sm"
+                  : "bg-white/95 shadow-md shadow-black/15"
+              }
+              imageClassName="h-10 sm:h-11"
+            />
           </a>
 
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-7">
             {navItems.map((item) => (
               <a
                 key={item.label}
                 href={item.href}
-                className={`font-medium transition-colors duration-200 ${
+                className={`text-sm font-semibold transition-colors duration-200 ${
                   isScrolled
                     ? "text-foreground/80 hover:text-lime-dark"
                     : "text-secondary-foreground/90 hover:text-primary"

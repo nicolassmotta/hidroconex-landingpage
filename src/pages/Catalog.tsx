@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, MessageCircle, Search } from "lucide-react";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import ProductImageFrame from "@/components/ProductImageFrame";
+import Seo from "@/components/Seo";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { catalogCategories, getCategoryMeta } from "@/data/categories";
 import {
@@ -11,12 +13,40 @@ import {
   productSearchText,
   resolveCatalogImage,
 } from "@/lib/catalog";
+import {
+  breadcrumbSchema,
+  categoryCollectionSchema,
+  organizationSchema,
+} from "@/lib/seo";
+import { categoryPath, productPath } from "@/lib/siteUrls";
 
 const CATALOG_RESULTS_ID = "catalog-results";
 
-function getInitialCategory() {
+interface CatalogPageProps {
+  initialCategoryId?: string;
+}
+
+function isKnownCategoryId(categoryId?: string | null) {
+  return Boolean(
+    categoryId && catalogCategories.some((category) => category.id === categoryId),
+  );
+}
+
+function getCategoryFromLocation(initialCategoryId?: string) {
+  const routeMatch = window.location.pathname.replace(/\/+$/, "").match(/^\/catalogo\/([^/]+)$/);
+  const routeCategory = routeMatch
+    ? catalogCategories.find(
+        (category) => category.slug === decodeURIComponent(routeMatch[1]),
+      )
+    : null;
+
+  if (routeCategory) return routeCategory.id;
+  if (isKnownCategoryId(initialCategoryId)) return initialCategoryId;
+
   const params = new URLSearchParams(window.location.search);
-  return params.get("categoria") || "todos";
+  const categoryId = params.get("categoria");
+
+  return isKnownCategoryId(categoryId) ? categoryId : "todos";
 }
 
 function quoteUrl(product: CatalogItem) {
@@ -24,12 +54,28 @@ function quoteUrl(product: CatalogItem) {
   return `https://wa.me/5517997726171?text=${encodeURIComponent(message)}`;
 }
 
-const CatalogPage = () => {
+const CatalogPage = ({ initialCategoryId }: CatalogPageProps) => {
   const [products, setProducts] = useState<CatalogItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState(getInitialCategory);
+  const [selectedCategory, setSelectedCategory] = useState(() =>
+    getCategoryFromLocation(initialCategoryId),
+  );
   const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    setSelectedCategory(getCategoryFromLocation(initialCategoryId));
+  }, [initialCategoryId]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setSelectedCategory(getCategoryFromLocation(initialCategoryId));
+      setSearchTerm("");
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [initialCategoryId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -78,8 +124,45 @@ const CatalogPage = () => {
     }, {});
   }, [products]);
 
+  const selectedCategoryMeta =
+    selectedCategory === "todos" ? null : getCategoryMeta(selectedCategory) ?? null;
+  const seoTitle = selectedCategoryMeta
+    ? `${selectedCategoryMeta.title} | Catálogo Hidroconex`
+    : "Catálogo Hidroconex | Luvas, Niples e Componentes Industriais";
+  const seoDescription = selectedCategoryMeta
+    ? `${selectedCategoryMeta.description} Consulte modelos e solicite orçamento técnico com a Hidroconex.`
+    : "Catálogo de conexões industriais Hidroconex: luvas, niples, juntas, plugs e filtros para tanques subterrâneos e reservatórios metálicos.";
+  const seoPath = selectedCategoryMeta ? categoryPath(selectedCategoryMeta) : "/catalogo";
+
+  const handleCategoryChange = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    setSearchTerm("");
+
+    const category = catalogCategories.find((item) => item.id === categoryId);
+    const nextPath =
+      categoryId === "todos" || !category ? "/catalogo" : categoryPath(category);
+
+    window.history.pushState({}, "", nextPath);
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      <Seo
+        title={seoTitle}
+        description={seoDescription}
+        path={seoPath}
+        structuredData={[
+          organizationSchema(),
+          categoryCollectionSchema(selectedCategoryMeta, filteredProducts),
+          breadcrumbSchema([
+            { name: "Início", path: "/" },
+            { name: "Catálogo", path: "/catalogo" },
+            ...(selectedCategoryMeta
+              ? [{ name: selectedCategoryMeta.title, path: categoryPath(selectedCategoryMeta) }]
+              : []),
+          ]),
+        ]}
+      />
       <Header />
 
       <main>
@@ -96,15 +179,17 @@ const CatalogPage = () => {
             <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-10 items-end">
               <div>
                 <span className="inline-block text-primary font-semibold text-sm uppercase tracking-wider mb-4">
-                  Catálogo Hidroconex
+                  {selectedCategoryMeta ? selectedCategoryMeta.mainCategory : "Catálogo Hidroconex"}
                 </span>
                 <h1 className="text-4xl md:text-6xl font-bold leading-tight mb-6">
-                  Peças industriais com precisão de fabricação.
+                  {selectedCategoryMeta
+                    ? selectedCategoryMeta.title
+                    : "Peças industriais com precisão de fabricação."}
                 </h1>
                 <p className="text-lg text-secondary-foreground/75 max-w-2xl leading-relaxed">
-                  Consulte modelos disponíveis para tanques subterrâneos,
-                  reservatórios metálicos e aplicações industriais. Para medidas
-                  especiais, fale com a equipe técnica.
+                  {selectedCategoryMeta
+                    ? selectedCategoryMeta.description
+                    : "Consulte modelos disponíveis para tanques subterrâneos, reservatórios metálicos e aplicações industriais. Para medidas especiais, fale com a equipe técnica."}
                 </p>
               </div>
 
@@ -148,7 +233,7 @@ const CatalogPage = () => {
               >
                 <button
                   type="button"
-                  onClick={() => setSelectedCategory("todos")}
+                  onClick={() => handleCategoryChange("todos")}
                   aria-pressed={selectedCategory === "todos"}
                   aria-controls={CATALOG_RESULTS_ID}
                   className={`whitespace-nowrap rounded-lg border px-4 py-3 text-sm font-semibold transition-colors ${
@@ -163,7 +248,7 @@ const CatalogPage = () => {
                   <button
                     key={category.id}
                     type="button"
-                    onClick={() => setSelectedCategory(category.id)}
+                    onClick={() => handleCategoryChange(category.id)}
                     aria-pressed={selectedCategory === category.id}
                     aria-controls={CATALOG_RESULTS_ID}
                     className={`whitespace-nowrap rounded-lg border px-4 py-3 text-sm font-semibold transition-colors ${
@@ -195,29 +280,31 @@ const CatalogPage = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {filteredProducts.map((product) => {
                     const category = getCategoryMeta(product.categoryId);
+                    const image = resolveCatalogImage(product);
 
                     return (
                       <article
                         key={product.id}
-                        className="card-industrial overflow-hidden bg-card flex flex-col"
+                        className="card-industrial flex flex-col overflow-hidden bg-card"
                       >
-                        <div className="h-56 bg-white border-b border-border p-5 flex items-center justify-center">
-                          <img
-                            src={resolveCatalogImage(product)}
+                        <a href={productPath(product)} aria-label={`Ver detalhes de ${product.model}`}>
+                          <ProductImageFrame
+                            src={image}
                             alt={product.model}
                             loading="lazy"
-                            decoding="async"
-                            className="max-w-full max-h-full object-contain"
+                            className="h-56 p-5 transition-colors hover:bg-primary/5"
                           />
-                        </div>
+                        </a>
 
-                        <div className="p-5 flex flex-col flex-1">
+                        <div className="flex flex-1 flex-col p-5">
                           <span className="text-xs font-semibold uppercase tracking-wider text-primary mb-2">
                             {category?.title || product.subCategory}
                           </span>
-                          <h2 className="text-lg font-bold text-foreground leading-snug mb-2">
-                            {product.model}
-                          </h2>
+                          <a href={productPath(product)} className="group/title">
+                            <h2 className="mb-2 text-lg font-bold leading-snug text-foreground transition-colors group-hover/title:text-lime-dark">
+                              {product.model}
+                            </h2>
+                          </a>
                           <p className="text-sm text-muted-foreground flex-1">
                             {product.description ||
                               `${product.mainCategory} • ${product.subCategory}`}

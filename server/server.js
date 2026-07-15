@@ -172,7 +172,7 @@ function contentSecurityPolicy() {
     "base-uri 'self'",
     "object-src 'none'",
     "frame-ancestors 'none'",
-    "script-src 'self' 'sha256-9HIY6JP1CZXL0iAbHgdRj4vXqz4EG54Pr+S4KjgVm4I=' https://hcaptcha.com https://*.hcaptcha.com",
+    "script-src 'self' 'nonce-aGlkcm9jb25leC1qc29ubGQ=' 'sha256-9HIY6JP1CZXL0iAbHgdRj4vXqz4EG54Pr+S4KjgVm4I=' https://hcaptcha.com https://*.hcaptcha.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https:",

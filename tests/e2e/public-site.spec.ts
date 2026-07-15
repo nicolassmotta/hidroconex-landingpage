@@ -39,6 +39,16 @@ test("public pages render and catalog search filters products", async ({ page })
   await search.fill("reservatorio");
   await expect(page.getByText(/luva/i).first()).toBeVisible();
 
+  await page.goto("/catalogo?categoria=invalida");
+  await expect(page.getByRole("heading", { name: /peças industriais/i })).toBeVisible();
+  await expect(page.getByText("Luva 2\"").first()).toBeVisible();
+
+  await page.goto("/catalogo/luvas-de-aco-para-reservatorios-metalicos");
+  await expect(page.getByRole("heading", { name: /luvas de a/i })).toBeVisible();
+
+  await page.goto("/produto/rm-luvas-luva-2");
+  await expect(page.getByRole("heading", { name: /luva 2/i })).toBeVisible();
+
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: /painel hidroconex/i })).toBeVisible();
 });

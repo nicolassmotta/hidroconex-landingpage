@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ProductImageFrame from "@/components/ProductImageFrame";
 import { catalogCategoryGroups, CatalogCategory } from "@/data/categories";
 import { CatalogItem, fetchCatalog, resolveCatalogImage } from "@/lib/catalog";
+import { categoryPath } from "@/lib/siteUrls";
 
 function getCategoryThumbnail(categoryId: string, products: CatalogItem[]): string {
   const item = products.find((product) => product.categoryId === categoryId);
@@ -18,21 +20,18 @@ const ProductCard = ({
   index: number;
 }) => (
   <a
-    href={`/catalogo?categoria=${category.id}`}
-    className="card-industrial group overflow-hidden bg-card flex flex-col h-full"
+    href={categoryPath(category)}
+    className="card-industrial group flex h-full flex-col overflow-hidden bg-card"
     style={{ animationDelay: `${index * 0.1}s` }}
   >
-    <div className="relative h-64 w-full overflow-hidden bg-white flex items-center justify-center p-6 border-b border-border">
-      <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity z-10 duration-300 pointer-events-none" />
-      <img
-        src={image}
-        alt={category.title}
-        loading={index > 1 ? "lazy" : "eager"}
-        decoding="async"
-        className="max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-500 ease-out"
-      />
-    </div>
-    <div className="p-6 flex flex-col flex-grow">
+    <ProductImageFrame
+      src={image}
+      alt={category.title}
+      loading="eager"
+      className="h-64 w-full p-7"
+      imageClassName="transition-transform duration-500 ease-out group-hover:scale-110"
+    />
+    <div className="flex flex-grow flex-col p-6">
       <h3 className="text-xl font-bold text-foreground mb-3 group-hover:text-lime-dark transition-colors">
         {category.title}
       </h3>
@@ -40,7 +39,7 @@ const ProductCard = ({
         {category.description}
       </p>
 
-      <div className="mt-4 flex items-center text-muted-foreground group-hover:text-lime-dark font-medium transition-colors duration-300">
+      <div className="mt-5 flex items-center text-muted-foreground group-hover:text-lime-dark font-semibold transition-colors duration-300">
         <span className="text-sm">Ver catálogo detalhado</span>
         <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1">→</span>
       </div>
