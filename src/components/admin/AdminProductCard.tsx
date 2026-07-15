@@ -72,9 +72,9 @@ export function AdminProductCard({
 
         <StatusBadges product={product} className="mt-3" />
 
-        <div className="mt-auto pt-4 flex items-center justify-between gap-2">
+        <div className="mt-auto pt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-xs text-muted-foreground">Atualizado {formatDate(product.updatedAt)}</span>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <button
               type="button"
               onClick={onEdit}

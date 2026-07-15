@@ -6,8 +6,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const ASSETS_DIR = path.resolve(__dirname, '../src/assets/Products');
-const OUTPUT_FILE = path.resolve(__dirname, '../src/data/catalog.ts');
+const ROOT_DIR = path.resolve(__dirname, '..');
+const ASSETS_DIR = path.join(ROOT_DIR, 'src/assets/Products');
+const OUTPUT_FILE = path.join(ROOT_DIR, 'src/data/catalog.ts');
 
 // Mapeia os nomes reais das pastas principais (ex: 'Reservatórios Metálicos') para os prefixos curtos (ex: 'rm')
 const CATEGORY_PREFIX_MAP = {
@@ -42,25 +43,41 @@ function formatModelName(folderName) {
   return name.trim();
 }
 
+function toPosixPath(filePath) {
+  return filePath.split(path.sep).join('/');
+}
+
+function slugify(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
 function generateCatalog() {
   console.log('Scanning directories in: ' + ASSETS_DIR);
 
   // Varre a pasta de Assets do projeto atrás de todo e qualquer arquivo PNG
-  const files = globSync(`${ASSETS_DIR}/**/*.png`);
+  const files = globSync(`${toPosixPath(ASSETS_DIR)}/**/*.png`, {
+    nodir: true,
+    windowsPathsNoEscape: true,
+  });
 
   // Filtro de repetição: Mantém apenas 1 imagem representativa por pasta de modelo
   const processedModels = new Set();
   const catalogItems = [];
 
   files.forEach((file) => {
-    const pathParts = file.split(path.sep);
-    const productsIndex = pathParts.findIndex(p => p === 'Products');
+    const absoluteFile = path.resolve(file);
+    const pathParts = path.relative(ASSETS_DIR, absoluteFile).split(path.sep);
 
     // A estrutura deve ser rigorosamente: Products / [Categoria] / [Subcategoria] / [Pasta Modelo] / [imagem.png]
-    if (pathParts.length >= productsIndex + 5) {
-      const mainCategory = pathParts[productsIndex + 1];
-      const subCategory = pathParts[productsIndex + 2];
-      const modelFolder = pathParts[productsIndex + 3];
+    if (pathParts.length >= 4) {
+      const mainCategory = pathParts[0];
+      const subCategory = pathParts[1];
+      const modelFolder = pathParts[2];
 
       const prefix = CATEGORY_PREFIX_MAP[mainCategory];
       const subSlug = SUBCATEGORY_SLUG_MAP[subCategory];
@@ -77,18 +94,16 @@ function generateCatalog() {
       if (!processedModels.has(uniqueKey)) {
         processedModels.add(uniqueKey);
 
-        // Corta o caminho absoluto da máquina para criar uma rota relativa a partir de "/src/" 
-        // Isso é vital para que o import dinâmico do Vite funcione na nuvem
-        const relativeToSrc = file.substring(file.indexOf('/src/assets/'));
+        const importPath = `./${toPosixPath(path.relative(ROOT_DIR, absoluteFile))}`;
 
         catalogItems.push({
-          id: uniqueKey.replace(/\s+/g, '-').replace(/[/"]/g, '-').replace(/-+/g, '-').toLowerCase(),
+          id: slugify(uniqueKey),
           categoryId,
           mainCategory,
           subCategory,
           model: modelName,
           // IMPORTANTE: Esse relative path será lido e empacotado pelo react/vite durante a renderização estática
-          importPath: '.' + relativeToSrc,
+          importPath,
           description: '',
         });
       }

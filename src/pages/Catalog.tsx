@@ -11,6 +11,8 @@ import {
   resolveCatalogImage,
 } from "@/lib/catalog";
 
+const CATALOG_RESULTS_ID = "catalog-results";
+
 function getInitialCategory() {
   const params = new URLSearchParams(window.location.search);
   return params.get("categoria") || "todos";
@@ -24,6 +26,7 @@ function quoteUrl(product: CatalogItem) {
 const CatalogPage = () => {
   const [products, setProducts] = useState<CatalogItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState(getInitialCategory);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -34,6 +37,13 @@ const CatalogPage = () => {
       .then((items) => {
         if (isMounted) {
           setProducts(items);
+          setLoadError(null);
+        }
+      })
+      .catch((error) => {
+        if (isMounted) {
+          setProducts([]);
+          setLoadError(error instanceof Error ? error.message : "Não foi possível carregar o catálogo.");
         }
       })
       .finally(() => {
@@ -115,20 +125,31 @@ const CatalogPage = () => {
           <div className="section-container">
             <div className="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between mb-10">
               <div className="relative w-full lg:max-w-md">
+                <label htmlFor="catalog-search" className="sr-only">
+                  Buscar produtos no catálogo
+                </label>
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <input
+                  id="catalog-search"
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
                   type="search"
                   placeholder="Buscar por modelo, linha ou aplicação"
+                  aria-controls={CATALOG_RESULTS_ID}
                   className="w-full rounded-lg border border-border bg-card pl-12 pr-4 py-3 text-foreground outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
 
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div
+                className="flex gap-2 overflow-x-auto pb-1"
+                role="group"
+                aria-label="Filtrar catálogo por categoria"
+              >
                 <button
                   type="button"
                   onClick={() => setSelectedCategory("todos")}
+                  aria-pressed={selectedCategory === "todos"}
+                  aria-controls={CATALOG_RESULTS_ID}
                   className={`whitespace-nowrap rounded-lg border px-4 py-3 text-sm font-semibold transition-colors ${
                     selectedCategory === "todos"
                       ? "bg-primary text-primary-foreground border-primary"
@@ -142,6 +163,8 @@ const CatalogPage = () => {
                     key={category.id}
                     type="button"
                     onClick={() => setSelectedCategory(category.id)}
+                    aria-pressed={selectedCategory === category.id}
+                    aria-controls={CATALOG_RESULTS_ID}
                     className={`whitespace-nowrap rounded-lg border px-4 py-3 text-sm font-semibold transition-colors ${
                       selectedCategory === category.id
                         ? "bg-primary text-primary-foreground border-primary"
@@ -154,64 +177,77 @@ const CatalogPage = () => {
               </div>
             </div>
 
-            {isLoading ? (
-              <div className="py-20 text-center text-muted-foreground">
-                Carregando catálogo...
-              </div>
-            ) : filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredProducts.map((product) => {
-                  const category = getCategoryMeta(product.categoryId);
+            <div id={CATALOG_RESULTS_ID} aria-live="polite">
+              {isLoading ? (
+                <div role="status" className="py-20 text-center text-muted-foreground">
+                  Carregando catálogo...
+                </div>
+              ) : loadError ? (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-red-200 bg-red-50 py-12 px-6 text-center text-red-900"
+                >
+                  <h2 className="text-xl font-bold mb-2">Não foi possível carregar o catálogo</h2>
+                  <p>{loadError}</p>
+                </div>
+              ) : filteredProducts.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {filteredProducts.map((product) => {
+                    const category = getCategoryMeta(product.categoryId);
 
-                  return (
-                    <article
-                      key={product.id}
-                      className="card-industrial overflow-hidden bg-card flex flex-col"
-                    >
-                      <div className="h-56 bg-white border-b border-border p-5 flex items-center justify-center">
-                        <img
-                          src={resolveCatalogImage(product)}
-                          alt={product.model}
-                          className="max-w-full max-h-full object-contain"
-                        />
-                      </div>
+                    return (
+                      <article
+                        key={product.id}
+                        className="card-industrial overflow-hidden bg-card flex flex-col"
+                      >
+                        <div className="h-56 bg-white border-b border-border p-5 flex items-center justify-center">
+                          <img
+                            src={resolveCatalogImage(product)}
+                            alt={product.model}
+                            className="max-w-full max-h-full object-contain"
+                          />
+                        </div>
 
-                      <div className="p-5 flex flex-col flex-1">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-primary mb-2">
-                          {category?.title || product.subCategory}
-                        </span>
-                        <h2 className="text-lg font-bold text-foreground leading-snug mb-2">
-                          {product.model}
-                        </h2>
-                        <p className="text-sm text-muted-foreground flex-1">
-                          {product.description ||
-                            `${product.mainCategory} • ${product.subCategory}`}
-                        </p>
+                        <div className="p-5 flex flex-col flex-1">
+                          <span className="text-xs font-semibold uppercase tracking-wider text-primary mb-2">
+                            {category?.title || product.subCategory}
+                          </span>
+                          <h2 className="text-lg font-bold text-foreground leading-snug mb-2">
+                            {product.model}
+                          </h2>
+                          <p className="text-sm text-muted-foreground flex-1">
+                            {product.description ||
+                              `${product.mainCategory} • ${product.subCategory}`}
+                          </p>
 
-                        <a
-                          href={quoteUrl(product)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-5 inline-flex items-center justify-center gap-2 rounded-md bg-secondary px-4 py-3 text-sm font-semibold text-secondary-foreground hover:bg-secondary/90 transition-colors"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          Solicitar orçamento
-                        </a>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="rounded-lg border border-dashed border-border bg-card py-16 px-6 text-center">
-                <h2 className="text-xl font-bold text-foreground mb-2">
-                  Nenhum produto encontrado
-                </h2>
-                <p className="text-muted-foreground">
-                  Ajuste os filtros ou fale com a Hidroconex para uma peça sob medida.
-                </p>
-              </div>
-            )}
+                          <a
+                            href={quoteUrl(product)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-5 inline-flex items-center justify-center gap-2 rounded-md bg-secondary px-4 py-3 text-sm font-semibold text-secondary-foreground hover:bg-secondary/90 transition-colors"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                            Solicitar orçamento
+                          </a>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div
+                  role="status"
+                  className="rounded-lg border border-dashed border-border bg-card py-16 px-6 text-center"
+                >
+                  <h2 className="text-xl font-bold text-foreground mb-2">
+                    Nenhum produto encontrado
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Ajuste os filtros ou fale com a Hidroconex para uma peça sob medida.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </section>
       </main>

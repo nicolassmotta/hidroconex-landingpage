@@ -10,7 +10,13 @@ import {
   Save,
 } from "lucide-react";
 import { catalogCategories } from "@/data/categories";
-import { CatalogItem, fetchCatalog, resolveCatalogImage } from "@/lib/catalog";
+import {
+  ADMIN_IMAGE_LIMIT_MB,
+  CatalogItem,
+  fetchAppConfig,
+  fetchCatalog,
+  resolveCatalogImage,
+} from "@/lib/catalog";
 import { useAdminCatalogFilters } from "@/hooks/useAdminCatalogFilters";
 import { toast } from "@/components/ui/sonner";
 import { AdminToolbar } from "@/components/admin/AdminToolbar";
@@ -19,10 +25,8 @@ import { AdminProductRow } from "@/components/admin/AdminProductRow";
 import { ImageDropzone } from "@/components/admin/ImageDropzone";
 import { ConfirmDeleteButton } from "@/components/admin/ConfirmDeleteButton";
 
-const TOKEN_KEY = "hidroconex_admin_token";
 const VIEW_KEY = "hidroconex_admin_view";
-/** Client-side soft limit mirroring the backend default; the server stays the source of truth. */
-const IMAGE_LIMIT_MB = 8;
+const ADMIN_PRODUCTS_ID = "admin-products";
 
 type ViewMode = "grid" | "list";
 
@@ -50,6 +54,28 @@ const emptyForm: FormState = {
   imagePreview: "",
 };
 
+function normalizeMessage(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function isAuthError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+
+  const message = normalizeMessage(error.message);
+  return /token|sessao|senha|credencial|nao autorizado|unauthorized|forbidden/.test(message);
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function isBlobPreview(url: string) {
+  return url.startsWith("blob:");
+}
+
 async function fileToUpload(file: File): Promise<UploadImage> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -68,6 +94,7 @@ async function fileToUpload(file: File): Promise<UploadImage> {
 
 async function requestJson(path: string, options: RequestInit = {}) {
   const response = await fetch(path, {
+    credentials: "include",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -91,7 +118,8 @@ async function requestJson(path: string, options: RequestInit = {}) {
 }
 
 const AdminPage = () => {
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [products, setProducts] = useState<CatalogItem[]>([]);
@@ -99,6 +127,8 @@ const AdminPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [imageLimitMb, setImageLimitMb] = useState(ADMIN_IMAGE_LIMIT_MB);
   const [view, setView] = useState<ViewMode>(
     () => (localStorage.getItem(VIEW_KEY) as ViewMode) || "grid",
   );
@@ -109,25 +139,77 @@ const AdminPage = () => {
   const isEditing = Boolean(form.id);
 
   useEffect(() => {
+    if (!isBlobPreview(form.imagePreview)) return;
+
+    const previewUrl = form.imagePreview;
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [form.imagePreview]);
+
+  useEffect(() => {
     localStorage.setItem(VIEW_KEY, view);
   }, [view]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchAppConfig().then((config) => {
+      if (isMounted) {
+        setImageLimitMb(config.imageLimitMb);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   async function loadProducts() {
     setIsLoading(true);
+    setLoadError(null);
     try {
-      setProducts(await fetchCatalog());
+      setProducts(await fetchCatalog({ fallbackToStatic: false }));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao carregar catálogo.");
+      const message = getErrorMessage(error, "Erro ao carregar catálogo.");
+      setProducts([]);
+      setLoadError(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
   }
 
   useEffect(() => {
-    if (token) {
+    let isMounted = true;
+
+    async function verifySession() {
+      try {
+        await requestJson("/api/admin/session");
+        if (isMounted) {
+          setIsAuthenticated(true);
+        }
+      } catch {
+        if (isMounted) {
+          setIsAuthenticated(false);
+        }
+      } finally {
+        if (isMounted) {
+          setIsCheckingSession(false);
+        }
+      }
+    }
+
+    verifySession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
       loadProducts();
     }
-  }, [token]);
+  }, [isAuthenticated]);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -135,29 +217,30 @@ const AdminPage = () => {
     setLoginError(null);
 
     try {
-      const data = await requestJson("/api/admin/login", {
+      await requestJson("/api/admin/login", {
         method: "POST",
         body: JSON.stringify({ password }),
       });
 
-      localStorage.setItem(TOKEN_KEY, data.token);
-      setToken(data.token);
+      setIsAuthenticated(true);
       setPassword("");
     } catch (error) {
       setLoginError(
-        error instanceof Error ? error.message : "Não foi possível acessar o painel.",
+        getErrorMessage(error, "Não foi possível acessar o painel."),
       );
     } finally {
       setIsSaving(false);
     }
   }
 
-  function logout() {
-    localStorage.removeItem(TOKEN_KEY);
-    setToken("");
+  async function logout(nextLoginError: string | null = null) {
+    await requestJson("/api/admin/logout", { method: "POST" }).catch(() => undefined);
+    setIsAuthenticated(false);
     setProducts([]);
     setForm(emptyForm);
     setSelectedIds(new Set());
+    setLoadError(null);
+    setLoginError(nextLoginError);
   }
 
   function resetForm() {
@@ -174,6 +257,14 @@ const AdminPage = () => {
       imagePreview: resolveCatalogImage(product),
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleImageFile(file: File) {
+    setForm((current) => ({
+      ...current,
+      imageFile: file,
+      imagePreview: URL.createObjectURL(file),
+    }));
   }
 
   async function handleSave(
@@ -208,7 +299,6 @@ const AdminPage = () => {
 
       await requestJson(path, {
         method: isEditing ? "PUT" : "POST",
-        headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
 
@@ -225,14 +315,11 @@ const AdminPage = () => {
 
       await loadProducts();
     } catch (error) {
-      const isUnauthorized =
-        error instanceof Error && /token|sessão|senha|inválido/i.test(error.message);
-
-      if (isUnauthorized) {
-        logout();
+      if (isAuthError(error)) {
+        await logout("Sessão expirada. Faça login novamente.");
       }
 
-      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o produto.");
+      toast.error(getErrorMessage(error, "Não foi possível salvar o produto."));
     } finally {
       setIsSaving(false);
     }
@@ -244,7 +331,6 @@ const AdminPage = () => {
     try {
       await requestJson(`/api/admin/products/${encodeURIComponent(product.id)}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       toast.success("Produto removido do catálogo.");
@@ -258,7 +344,11 @@ const AdminPage = () => {
       }
       await loadProducts();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível remover o produto.");
+      if (isAuthError(error)) {
+        await logout("Sessão expirada. Faça login novamente.");
+      }
+
+      toast.error(getErrorMessage(error, "Não foi possível remover o produto."));
     } finally {
       setIsSaving(false);
     }
@@ -271,21 +361,31 @@ const AdminPage = () => {
     setIsSaving(true);
     let removed = 0;
     let failed = 0;
+    let authFailed = false;
 
     for (const id of ids) {
       try {
         await requestJson(`/api/admin/products/${encodeURIComponent(id)}`, {
           method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
         });
         removed += 1;
-      } catch {
+      } catch (error) {
+        if (isAuthError(error)) {
+          authFailed = true;
+        }
         failed += 1;
       }
     }
 
     setSelectedIds(new Set());
     setIsSaving(false);
+
+    if (authFailed) {
+      await logout("Sessão expirada. Faça login novamente.");
+      toast.error("Sessão expirada. Faça login novamente.");
+      return;
+    }
+
     await loadProducts();
 
     if (failed === 0) {
@@ -322,7 +422,20 @@ const AdminPage = () => {
     });
   }
 
-  if (!token) {
+  if (isCheckingSession) {
+    return (
+      <main className="min-h-screen bg-gradient-navy flex items-center justify-center px-4 py-12">
+        <section className="w-full max-w-md rounded-lg bg-card border border-border shadow-xl p-8 text-center">
+          <h1 className="text-2xl font-bold text-foreground mb-3">Painel Hidroconex</h1>
+          <p className="text-muted-foreground" role="status">
+            Verificando sessão...
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (!isAuthenticated) {
     return (
       <main className="min-h-screen bg-gradient-navy flex items-center justify-center px-4 py-12">
         <section className="w-full max-w-md rounded-lg bg-card border border-border shadow-xl p-8">
@@ -347,6 +460,8 @@ const AdminPage = () => {
                   onChange={(event) => setPassword(event.target.value)}
                   className="w-full rounded-md border border-border bg-background px-4 py-3 pr-12 outline-none focus:ring-2 focus:ring-primary/40"
                   autoComplete="current-password"
+                  aria-invalid={Boolean(loginError)}
+                  aria-describedby={loginError ? "admin-login-error" : undefined}
                   required
                 />
                 <button
@@ -361,7 +476,12 @@ const AdminPage = () => {
             </div>
 
             {loginError && (
-              <div className="rounded-md px-4 py-3 text-sm font-medium bg-red-100 text-red-800">
+              <div
+                id="admin-login-error"
+                role="alert"
+                aria-live="assertive"
+                className="rounded-md px-4 py-3 text-sm font-medium bg-red-100 text-red-800"
+              >
                 {loginError}
               </div>
             )}
@@ -402,7 +522,7 @@ const AdminPage = () => {
             </button>
             <button
               type="button"
-              onClick={logout}
+              onClick={() => void logout()}
               className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               <LogOut className="w-4 h-4" />
@@ -505,14 +625,8 @@ const AdminPage = () => {
               <span className="block text-sm font-semibold text-foreground mb-2">Foto do produto</span>
               <ImageDropzone
                 preview={form.imagePreview}
-                maxSizeMb={IMAGE_LIMIT_MB}
-                onFile={(file) =>
-                  setForm((current) => ({
-                    ...current,
-                    imageFile: file,
-                    imagePreview: URL.createObjectURL(file),
-                  }))
-                }
+                maxSizeMb={imageLimitMb}
+                onFile={handleImageFile}
               />
             </div>
 
@@ -561,6 +675,7 @@ const AdminPage = () => {
                 checked={allVisibleSelected}
                 onChange={toggleSelectAllVisible}
                 className="w-4 h-4 accent-primary"
+                aria-controls={ADMIN_PRODUCTS_ID}
               />
               Selecionar todos os filtrados
             </label>
@@ -572,57 +687,82 @@ const AdminPage = () => {
             onViewChange={setView}
             resultCount={filters.filtered.length}
             totalCount={products.length}
+            resultsId={ADMIN_PRODUCTS_ID}
           />
 
-          {isLoading ? (
-            <div className="rounded-lg bg-card border border-border p-8 text-center text-muted-foreground">
-              Carregando produtos...
-            </div>
-          ) : filters.filtered.length === 0 ? (
-            <div className="rounded-lg bg-card border border-dashed border-border p-8 text-center">
-              <h3 className="text-lg font-bold text-foreground mb-2">Nenhum produto encontrado</h3>
-              <p className="text-muted-foreground">
-                {filters.hasActiveFilters
-                  ? "Ajuste a busca ou os filtros para ver outros itens."
-                  : "Cadastre um novo item para começar o catálogo."}
-              </p>
-            </div>
-          ) : view === "grid" ? (
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
-              {filters.filtered.map((product) => (
-                <AdminProductCard
-                  key={product.id}
-                  product={product}
-                  isEditing={form.id === product.id}
-                  isSelected={selectedIds.has(product.id)}
-                  busy={isSaving}
-                  onToggleSelect={() => toggleSelect(product.id)}
-                  onEdit={() => startEdit(product)}
-                  onDelete={() => handleDelete(product)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filters.filtered.map((product) => (
-                <AdminProductRow
-                  key={product.id}
-                  product={product}
-                  isEditing={form.id === product.id}
-                  isSelected={selectedIds.has(product.id)}
-                  busy={isSaving}
-                  onToggleSelect={() => toggleSelect(product.id)}
-                  onEdit={() => startEdit(product)}
-                  onDelete={() => handleDelete(product)}
-                />
-              ))}
-            </div>
-          )}
+          <div id={ADMIN_PRODUCTS_ID} aria-live="polite">
+            {isLoading ? (
+              <div
+                role="status"
+                className="rounded-lg bg-card border border-border p-8 text-center text-muted-foreground"
+              >
+                Carregando produtos...
+              </div>
+            ) : loadError ? (
+              <div
+                role="alert"
+                className="rounded-lg bg-red-50 border border-red-200 p-6 text-red-900"
+              >
+                <h3 className="text-lg font-bold mb-2">Não foi possível carregar o catálogo</h3>
+                <p className="text-sm">{loadError}</p>
+                <button
+                  type="button"
+                  onClick={() => loadProducts()}
+                  className="mt-4 inline-flex items-center gap-2 rounded-md bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-800 transition-colors"
+                >
+                  <RefreshCcw className="w-4 h-4" />
+                  Tentar novamente
+                </button>
+              </div>
+            ) : filters.filtered.length === 0 ? (
+              <div
+                role="status"
+                className="rounded-lg bg-card border border-dashed border-border p-8 text-center"
+              >
+                <h3 className="text-lg font-bold text-foreground mb-2">Nenhum produto encontrado</h3>
+                <p className="text-muted-foreground">
+                  {filters.hasActiveFilters
+                    ? "Ajuste a busca ou os filtros para ver outros itens."
+                    : "Cadastre um novo item para começar o catálogo."}
+                </p>
+              </div>
+            ) : view === "grid" ? (
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+                {filters.filtered.map((product) => (
+                  <AdminProductCard
+                    key={product.id}
+                    product={product}
+                    isEditing={form.id === product.id}
+                    isSelected={selectedIds.has(product.id)}
+                    busy={isSaving}
+                    onToggleSelect={() => toggleSelect(product.id)}
+                    onEdit={() => startEdit(product)}
+                    onDelete={() => handleDelete(product)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filters.filtered.map((product) => (
+                  <AdminProductRow
+                    key={product.id}
+                    product={product}
+                    isEditing={form.id === product.id}
+                    isSelected={selectedIds.has(product.id)}
+                    busy={isSaving}
+                    onToggleSelect={() => toggleSelect(product.id)}
+                    onEdit={() => startEdit(product)}
+                    onDelete={() => handleDelete(product)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </section>
       </div>
 
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 rounded-lg bg-secondary text-secondary-foreground shadow-xl px-5 py-3">
+        <div className="fixed bottom-5 left-3 right-3 z-40 flex flex-wrap items-center justify-center gap-3 rounded-lg bg-secondary text-secondary-foreground shadow-xl px-4 py-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:flex-nowrap sm:gap-4 sm:px-5">
           <span className="text-sm font-medium">{selectedIds.size} selecionado(s)</span>
           <button
             type="button"

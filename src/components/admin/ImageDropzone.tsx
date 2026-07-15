@@ -1,4 +1,4 @@
-import { DragEvent, useState } from "react";
+import { DragEvent, useId, useState } from "react";
 import { ImagePlus, UploadCloud } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,8 @@ interface ImageDropzoneProps {
  */
 export function ImageDropzone({ preview, maxSizeMb, onFile }: ImageDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const inputId = useId();
+  const helpId = `${inputId}-help`;
 
   function validateAndSend(file: File | null) {
     if (!file) return;
@@ -46,14 +48,16 @@ export function ImageDropzone({ preview, maxSizeMb, onFile }: ImageDropzoneProps
 
   return (
     <label
+      htmlFor={inputId}
       onDragOver={(event) => {
         event.preventDefault();
         setIsDragging(true);
       }}
+      onDragEnter={() => setIsDragging(true)}
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
       className={cn(
-        "min-h-48 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-3 p-5 cursor-pointer transition-colors text-center",
+        "min-h-48 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-3 p-5 cursor-pointer transition-colors text-center focus-within:ring-2 focus-within:ring-primary/40",
         isDragging
           ? "border-primary bg-primary/5"
           : "border-border bg-background hover:border-primary/60",
@@ -66,7 +70,7 @@ export function ImageDropzone({ preview, maxSizeMb, onFile }: ImageDropzoneProps
             alt="Prévia do produto"
             className="max-h-40 max-w-full object-contain"
           />
-          <span className="text-xs text-muted-foreground">
+          <span id={helpId} className="text-xs text-muted-foreground">
             Clique ou arraste para trocar a imagem
           </span>
         </>
@@ -79,20 +83,23 @@ export function ImageDropzone({ preview, maxSizeMb, onFile }: ImageDropzoneProps
               <ImagePlus className="w-6 h-6 text-primary" />
             )}
           </div>
-          <div>
+          <div aria-live="polite">
             <span className="block text-sm font-medium text-foreground">
               {isDragging ? "Solte a imagem aqui" : "Arraste uma imagem ou clique para selecionar"}
             </span>
-            <span className="block text-xs text-muted-foreground mt-1">
+            <span id={helpId} className="block text-xs text-muted-foreground mt-1">
               PNG, JPG ou WebP · até {maxSizeMb} MB
             </span>
           </div>
         </>
       )}
       <input
+        id={inputId}
         type="file"
         accept="image/png,image/jpeg,image/webp"
         className="sr-only"
+        aria-label={preview ? "Trocar foto do produto" : "Selecionar foto do produto"}
+        aria-describedby={helpId}
         onChange={(event) => validateAndSend(event.target.files?.[0] || null)}
       />
     </label>

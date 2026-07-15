@@ -30,7 +30,7 @@ export function AdminProductRow({
   return (
     <div
       className={cn(
-        "flex items-center gap-4 rounded-lg bg-card border p-3 transition-shadow",
+        "flex flex-wrap items-center gap-4 rounded-lg bg-card border p-3 transition-shadow sm:flex-nowrap",
         isEditing ? "border-primary ring-2 ring-primary/40" : "border-border",
       )}
     >
@@ -72,7 +72,7 @@ export function AdminProductRow({
         {formatDate(product.updatedAt)}
       </span>
 
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:shrink-0">
         <button
           type="button"
           onClick={onEdit}

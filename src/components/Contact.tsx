@@ -47,11 +47,11 @@ const Contact = () => {
     <section id="contato" className="section-padding bg-muted/30">
       <div className="section-container">
         <div className="text-center mb-16">
-          <span className="inline-block text-primary font-semibold text-sm uppercase tracking-wider mb-4">
+          <span className="inline-block text-lime-dark font-semibold text-sm uppercase tracking-wider mb-4">
             Fale Conosco
           </span>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Entre em <span className="text-primary">contato</span>
+            Entre em <span className="text-lime-dark">contato</span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Estamos prontos para atender sua necessidade. Solicite um orçamento
@@ -63,7 +63,7 @@ const Contact = () => {
           <div className="space-y-6">
             <div className="card-industrial p-6 flex items-start gap-4">
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <MapPin className="w-6 h-6 text-primary" />
+                <MapPin className="w-6 h-6 text-lime-dark" />
               </div>
               <div>
                 <h3 className="font-bold text-foreground mb-1">Endereço</h3>
@@ -77,7 +77,7 @@ const Contact = () => {
 
             <div className="card-industrial p-6 flex items-start gap-4">
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Phone className="w-6 h-6 text-primary" />
+                <Phone className="w-6 h-6 text-lime-dark" />
               </div>
               <div>
                 <h3 className="font-bold text-foreground mb-1">Telefone</h3>
@@ -85,7 +85,7 @@ const Contact = () => {
                   href="https://wa.me/5517997726171?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20Hidroconex!"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-primary transition-colors"
+                  className="text-muted-foreground hover:text-lime-dark transition-colors"
                 >
                   (17) 99772-6171
                 </a>
@@ -94,20 +94,20 @@ const Contact = () => {
 
             <div className="card-industrial p-6 flex items-start gap-4">
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Clock className="w-6 h-6 text-primary" />
+                <Clock className="w-6 h-6 text-lime-dark" />
               </div>
               <div className="flex-1">
                 <h3 className="font-bold text-foreground mb-4">Horário de funcionamento</h3>
 
                 <div className="space-y-3 w-full text-sm">
                   {horariosAgrupados.map((item) => (
-                    <div key={item.dia} className="flex items-center group">
-                      <span className="text-muted-foreground whitespace-nowrap">
+                    <div key={item.dia} className="grid gap-1 sm:grid-cols-[max-content_1fr_auto] sm:items-center">
+                      <span className="text-muted-foreground sm:whitespace-nowrap">
                         {item.dia}
                       </span>
-                      <div className="mx-2 flex-grow border-b border-dotted border-muted/30 mb-1" />
+                      <div className="hidden sm:block mx-2 border-b border-dotted border-muted/30 mb-1" />
                       <span
-                        className={`whitespace-nowrap font-medium ${
+                        className={`font-medium leading-relaxed ${
                           item.horas === "Fechado"
                             ? "text-muted-foreground/60 italic"
                             : "text-foreground"
@@ -125,14 +125,14 @@ const Contact = () => {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
                     </span>
-                    <span className="text-xs font-medium text-green-600 uppercase tracking-wider">
+                    <span className="text-xs font-medium text-green-700 uppercase tracking-wider">
                       Aberto agora
                     </span>
                   </div>
                 ) : (
                   <div className="mt-4 pt-4 border-t border-muted/20 flex items-center gap-2 animate-fade-in">
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500/80" />
-                    <span className="text-xs font-medium text-red-600/80 uppercase tracking-wider">
+                    <span className="text-xs font-medium text-red-700 uppercase tracking-wider">
                       Fechado no momento
                     </span>
                   </div>
@@ -142,13 +142,13 @@ const Contact = () => {
 
             <div className="card-industrial p-6 flex items-start gap-4">
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Mail className="w-6 h-6 text-primary" />
+                <Mail className="w-6 h-6 text-lime-dark" />
               </div>
               <div>
                 <h3 className="font-bold text-foreground mb-1">E-mail</h3>
                 <a
                   href="mailto:hidroconex@terra.com.br"
-                  className="text-muted-foreground hover:text-primary transition-colors"
+                  className="text-muted-foreground hover:text-lime-dark transition-colors"
                 >
                   hidroconex@terra.com.br
                 </a>
@@ -156,7 +156,7 @@ const Contact = () => {
             </div>
           </div>
 
-          <div className="card-industrial p-8 relative">
+          <div className="card-industrial p-5 sm:p-8 relative">
             <h3 className="text-xl font-bold text-foreground mb-6">
               Solicite um orçamento
             </h3>
@@ -281,7 +281,10 @@ const Contact = () => {
 
               {submitStatus && (
                 <div
-                  className={`p-4 rounded-md text-sm font-medium animate-fade-in ${
+                  role={submitStatus.type === "error" ? "alert" : "status"}
+                  aria-live={submitStatus.type === "error" ? "assertive" : "polite"}
+                  aria-atomic="true"
+                  className={`form-feedback ${
                     submitStatus.type === "success"
                       ? "bg-green-100 text-green-800 border border-green-200"
                       : "bg-red-100 text-red-800 border border-red-200"
@@ -291,13 +294,17 @@ const Contact = () => {
                 </div>
               )}
 
-              <HCaptcha
-                ref={captchaRef}
-                sitekey="50b2fe65-b00b-4b9e-ad62-3ba471098be2"
-                reCaptchaCompat={false}
-                onVerify={(token) => setCaptchaToken(token)}
-                onExpire={() => setCaptchaToken(null)}
-              />
+              <div className="w-full overflow-x-auto pb-1">
+                <div className="min-w-[303px]">
+                  <HCaptcha
+                    ref={captchaRef}
+                    sitekey="50b2fe65-b00b-4b9e-ad62-3ba471098be2"
+                    reCaptchaCompat={false}
+                    onVerify={(token) => setCaptchaToken(token)}
+                    onExpire={() => setCaptchaToken(null)}
+                  />
+                </div>
+              </div>
 
               <button
                 type="submit"

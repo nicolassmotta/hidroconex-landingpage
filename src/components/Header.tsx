@@ -31,7 +31,9 @@ const Header = () => {
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? "bg-card/95 backdrop-blur-md shadow-lg" : "bg-transparent"
+        isScrolled || isMobileMenuOpen
+          ? "bg-card/95 backdrop-blur-md shadow-lg"
+          : "bg-transparent"
       }`}
     >
       <div className="section-container">
@@ -47,7 +49,7 @@ const Header = () => {
                 href={item.href}
                 className={`font-medium transition-colors duration-200 ${
                   isScrolled
-                    ? "text-foreground/80 hover:text-primary"
+                    ? "text-foreground/80 hover:text-lime-dark"
                     : "text-secondary-foreground/90 hover:text-primary"
                 }`}
               >
@@ -67,20 +69,21 @@ const Header = () => {
             }`}
             aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
             aria-expanded={isMobileMenuOpen}
+            aria-controls="mobile-navigation"
           >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
 
         {isMobileMenuOpen && (
-          <nav className="md:hidden pb-4 animate-fade-in">
+          <nav id="mobile-navigation" className="md:hidden pb-4 animate-fade-in">
             <div className="flex flex-col gap-4 bg-card rounded-lg p-4 shadow-lg">
               {navItems.map((item) => (
                 <a
                   key={item.label}
                   href={item.href}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-foreground/80 hover:text-primary font-medium py-2 transition-colors"
+                  className="text-foreground/80 hover:text-lime-dark font-medium py-2 transition-colors"
                 >
                   {item.label}
                 </a>

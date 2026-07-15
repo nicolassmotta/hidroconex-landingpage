@@ -55,7 +55,7 @@ mexer no código.
 
 ## Como rodar
 
-**Pré-requisitos:** Node.js 18+ e uma instância do MongoDB (local ou Atlas).
+**Pré-requisitos:** Node.js 20.19+ e uma instância do MongoDB (local ou Atlas).
 
 1. Instale as dependências:
 
@@ -105,10 +105,11 @@ VITE_WEB3FORMS_ACCESS_KEY="sua_chave_web3forms"
 
 Variáveis opcionais de ajuste fino do login também são suportadas:
 `ADMIN_TOKEN_TTL_HOURS`, `LOGIN_MAX_ATTEMPTS`, `LOGIN_WINDOW_MIN`,
-`LOGIN_BLOCK_MIN` e `CORS_ORIGIN`.
+`LOGIN_BLOCK_MIN` e `CORS_ORIGIN`. O painel admin usa sessão em cookie
+`HttpOnly`; o frontend não armazena token em `localStorage`.
 
 O backend cria automaticamente as coleções `products`, `settings`,
-`loginAttempts` e os buckets `productImages.*` (GridFS) — não é preciso
+`loginAttempts`, `adminSessions` e os buckets `productImages.*` (GridFS) — não é preciso
 configurá-las manualmente.
 
 ## Rotas
@@ -145,5 +146,7 @@ Vercel:
 - `ADMIN_PASSWORD` (senha forte)
 - `VITE_WEB3FORMS_ACCESS_KEY`
 - `IMAGE_LIMIT_MB` (recomendado: `3`)
+
+Configure o runtime da Vercel para Node.js 20.x ou superior.
 
 As fotos novas não dependem de disco local — ficam no GridFS do MongoDB.

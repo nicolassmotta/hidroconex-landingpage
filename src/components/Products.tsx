@@ -32,14 +32,14 @@ const ProductCard = ({
       />
     </div>
     <div className="p-6 flex flex-col flex-grow">
-      <h3 className="text-xl font-bold text-foreground mb-3 group-hover:text-primary transition-colors">
+      <h3 className="text-xl font-bold text-foreground mb-3 group-hover:text-lime-dark transition-colors">
         {category.title}
       </h3>
       <p className="text-muted-foreground leading-relaxed text-sm flex-grow">
         {category.description}
       </p>
 
-      <div className="mt-4 flex items-center text-muted-foreground group-hover:text-primary font-medium transition-colors duration-300">
+      <div className="mt-4 flex items-center text-muted-foreground group-hover:text-lime-dark font-medium transition-colors duration-300">
         <span className="text-sm">Ver catálogo detalhado</span>
         <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
       </div>
@@ -94,11 +94,11 @@ const Products = () => {
     <section id="produtos" className="section-padding bg-muted/30">
       <div className="section-container">
         <div className="text-center mb-16">
-          <span className="inline-block text-primary font-semibold text-sm uppercase tracking-wider mb-4 animate-fade-in">
+          <span className="inline-block text-lime-dark font-semibold text-sm uppercase tracking-wider mb-4 animate-fade-in">
             Nosso Catálogo
           </span>
           <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4 font-heading tracking-tight">
-            Nossos <span className="text-primary">Produtos</span>
+            Nossos <span className="text-lime-dark">Produtos</span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto text-lg leading-relaxed">
             Peças de alta precisão técnica para tanques subterrâneos,
@@ -108,16 +108,16 @@ const Products = () => {
 
         <Tabs defaultValue="tanques" className="w-full">
           <div className="flex justify-center mb-12">
-            <TabsList className="bg-background border border-border p-1 w-full max-w-[600px] h-[60px] shadow-sm rounded-lg">
+            <TabsList className="!grid grid-cols-2 items-stretch bg-background border border-border p-1 w-full max-w-[600px] h-auto min-h-[60px] shadow-sm rounded-lg">
               <TabsTrigger
                 value="tanques"
-                className="w-1/2 h-full text-sm sm:text-base font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300 rounded-md"
+                className="h-full min-h-12 !whitespace-normal px-2 text-center text-xs leading-tight sm:text-base font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300 rounded-md"
               >
                 Tanques Subterrâneos
               </TabsTrigger>
               <TabsTrigger
                 value="reservatorios"
-                className="w-1/2 h-full text-sm sm:text-base font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300 rounded-md"
+                className="h-full min-h-12 !whitespace-normal px-2 text-center text-xs leading-tight sm:text-base font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300 rounded-md"
               >
                 Reservatórios Metálicos
               </TabsTrigger>

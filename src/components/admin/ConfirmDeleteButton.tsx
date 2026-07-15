@@ -34,18 +34,19 @@ export function ConfirmDeleteButton({
 
   if (confirming) {
     return (
-      <div className="inline-flex items-center gap-1">
+      <div className="inline-flex max-w-full flex-wrap items-center justify-end gap-1">
         <button
           type="button"
           disabled={disabled}
+          aria-label="Confirmar exclusão"
           onClick={() => {
             setConfirming(false);
             onConfirm();
           }}
-          className="inline-flex items-center gap-1.5 rounded-md bg-destructive px-3 py-2.5 text-xs font-semibold text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-70"
+          className="inline-flex min-w-0 items-center gap-1.5 rounded-md bg-destructive px-2.5 py-2.5 text-xs font-semibold text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-70 sm:px-3"
         >
           <Check className="w-3.5 h-3.5" />
-          Confirmar
+          <span className={cn(variant === "icon" && "hidden sm:inline")}>Confirmar</span>
         </button>
         <button
           type="button"

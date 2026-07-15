@@ -45,7 +45,7 @@
     --navy-light: 210 40% 25%;
     --lime: 84 81% 44%;
     --lime-light: 84 70% 55%;
-    --lime-dark: 84 81% 35%;
+    --lime-dark: 84 81% 26%;
     --steel: 210 10% 50%;
     --steel-light: 210 10% 85%;
 
@@ -161,15 +161,19 @@
   }
 
   .btn-secondary-hero {
-    @apply border-2 border-primary/30 text-primary-foreground font-semibold px-8 py-4 rounded-md transition-all duration-300 hover:bg-primary/10;
+    @apply border-2 border-white/75 bg-white/10 text-white font-semibold px-8 py-4 rounded-md transition-all duration-300 hover:bg-white/20 hover:border-white;
   }
 
   .nav-link {
-    @apply text-foreground/80 hover:text-primary font-medium transition-colors duration-200;
+    @apply text-foreground/80 hover:text-lime-dark font-medium transition-colors duration-200;
   }
 
   .nav-link-light {
     @apply text-white/90 hover:text-primary font-medium transition-colors duration-200;
+  }
+
+  .form-feedback {
+    @apply p-4 rounded-md text-sm font-medium animate-fade-in;
   }
 }
 

@@ -18,13 +18,47 @@ loadEnv(path.join(ROOT_DIR, ".env"));
 const PORT = Number(process.env.PORT || 3333);
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017";
 const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "hidroconex";
-const TOKEN_TTL_MS = Number(process.env.ADMIN_TOKEN_TTL_HOURS || 8) * 60 * 60 * 1000;
+const CONFIGURED_TOKEN_TTL_HOURS = Number(process.env.ADMIN_TOKEN_TTL_HOURS || 8);
+const TOKEN_TTL_HOURS =
+  Number.isFinite(CONFIGURED_TOKEN_TTL_HOURS) && CONFIGURED_TOKEN_TTL_HOURS > 0
+    ? CONFIGURED_TOKEN_TTL_HOURS
+    : 8;
+const TOKEN_TTL_MS = TOKEN_TTL_HOURS * 60 * 60 * 1000;
 const DEFAULT_IMAGE_LIMIT_MB = process.env.VERCEL ? 3 : 8;
-const JSON_LIMIT_BYTES = Number(process.env.JSON_BODY_LIMIT_MB || DEFAULT_IMAGE_LIMIT_MB + 2) * 1024 * 1024;
-const IMAGE_LIMIT_BYTES = Number(process.env.IMAGE_LIMIT_MB || DEFAULT_IMAGE_LIMIT_MB) * 1024 * 1024;
-const LOGIN_MAX_ATTEMPTS = Number(process.env.LOGIN_MAX_ATTEMPTS || 8);
-const LOGIN_WINDOW_MS = Number(process.env.LOGIN_WINDOW_MIN || 15) * 60 * 1000;
-const LOGIN_BLOCK_MS = Number(process.env.LOGIN_BLOCK_MIN || 15) * 60 * 1000;
+const CONFIGURED_IMAGE_LIMIT_MB = Number(process.env.IMAGE_LIMIT_MB || DEFAULT_IMAGE_LIMIT_MB);
+const IMAGE_LIMIT_MB =
+  Number.isFinite(CONFIGURED_IMAGE_LIMIT_MB) && CONFIGURED_IMAGE_LIMIT_MB > 0
+    ? CONFIGURED_IMAGE_LIMIT_MB
+    : DEFAULT_IMAGE_LIMIT_MB;
+const CONFIGURED_JSON_LIMIT_MB = Number(process.env.JSON_BODY_LIMIT_MB || IMAGE_LIMIT_MB + 2);
+const JSON_LIMIT_MB =
+  Number.isFinite(CONFIGURED_JSON_LIMIT_MB) && CONFIGURED_JSON_LIMIT_MB > 0
+    ? CONFIGURED_JSON_LIMIT_MB
+    : IMAGE_LIMIT_MB + 2;
+const JSON_LIMIT_BYTES = JSON_LIMIT_MB * 1024 * 1024;
+const IMAGE_LIMIT_BYTES = IMAGE_LIMIT_MB * 1024 * 1024;
+const CONFIGURED_LOGIN_MAX_ATTEMPTS = Number(process.env.LOGIN_MAX_ATTEMPTS || 8);
+const LOGIN_MAX_ATTEMPTS =
+  Number.isFinite(CONFIGURED_LOGIN_MAX_ATTEMPTS) && CONFIGURED_LOGIN_MAX_ATTEMPTS > 0
+    ? CONFIGURED_LOGIN_MAX_ATTEMPTS
+    : 8;
+const CONFIGURED_LOGIN_WINDOW_MIN = Number(process.env.LOGIN_WINDOW_MIN || 15);
+const LOGIN_WINDOW_MS =
+  (Number.isFinite(CONFIGURED_LOGIN_WINDOW_MIN) && CONFIGURED_LOGIN_WINDOW_MIN > 0
+    ? CONFIGURED_LOGIN_WINDOW_MIN
+    : 15) *
+  60 *
+  1000;
+const CONFIGURED_LOGIN_BLOCK_MIN = Number(process.env.LOGIN_BLOCK_MIN || 15);
+const LOGIN_BLOCK_MS =
+  (Number.isFinite(CONFIGURED_LOGIN_BLOCK_MIN) && CONFIGURED_LOGIN_BLOCK_MIN > 0
+    ? CONFIGURED_LOGIN_BLOCK_MIN
+    : 15) *
+  60 *
+  1000;
+const ADMIN_SESSION_COOKIE = "hidroconex_admin_session";
+const MODEL_MAX_LENGTH = 120;
+const DESCRIPTION_MAX_LENGTH = 1000;
 
 const CATEGORY_MAP = {
   "rm-luvas": { mainCategory: "Reservatórios Metálicos", subCategory: "Luvas" },
@@ -48,6 +82,7 @@ let productsCollection;
 let settingsCollection;
 let imagesBucket;
 let loginAttemptsCollection;
+let adminSessionsCollection;
 let databaseReadyPromise;
 
 function loadEnv(filePath) {
@@ -92,12 +127,44 @@ function setCorsHeaders(req, res) {
 
   res.setHeader("Access-Control-Allow-Origin", origin);
   res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+}
+
+function contentSecurityPolicy() {
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "script-src 'self' https://hcaptcha.com https://*.hcaptcha.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https:",
+    "connect-src 'self' https://api.web3forms.com https://hcaptcha.com https://*.hcaptcha.com",
+    "frame-src https://www.google.com https://*.google.com https://hcaptcha.com https://*.hcaptcha.com",
+    "form-action 'self' https://api.web3forms.com",
+  ].join("; ");
+}
+
+function setSecurityHeaders(res) {
+  if (!res.getHeader("Content-Security-Policy")) {
+    res.setHeader("Content-Security-Policy", contentSecurityPolicy());
+  }
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+
+  if (process.env.VERCEL || process.env.NODE_ENV === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+  }
 }
 
 function sendJson(res, statusCode, payload) {
   const body = JSON.stringify(payload);
+  setSecurityHeaders(res);
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(body),
@@ -126,14 +193,6 @@ function adminPassword() {
   return process.env.ADMIN_PASSWORD || "";
 }
 
-function base64Url(input) {
-  return Buffer.from(input).toString("base64url");
-}
-
-function sign(value) {
-  return crypto.createHmac("sha256", adminPassword()).update(value).digest("base64url");
-}
-
 function safePasswordMatch(received, expected) {
   // Constant-time comparison to avoid leaking the password through timing.
   // SHA-256 normalizes the inputs to a fixed length so timingSafeEqual never throws.
@@ -142,48 +201,108 @@ function safePasswordMatch(received, expected) {
   return crypto.timingSafeEqual(receivedHash, expectedHash);
 }
 
-function createToken() {
-  const payload = {
-    iat: Date.now(),
-    exp: Date.now() + TOKEN_TTL_MS,
-  };
-  const encodedPayload = base64Url(JSON.stringify(payload));
-  return `${encodedPayload}.${sign(encodedPayload)}`;
-}
+function parseCookies(req) {
+  const header = req.headers.cookie || "";
+  const cookies = new Map();
 
-function verifyToken(token) {
-  if (!adminPassword()) {
-    return { ok: false, status: 500, message: "ADMIN_PASSWORD não configurado no backend." };
-  }
+  for (const entry of header.split(";")) {
+    const separator = entry.indexOf("=");
+    if (separator === -1) continue;
 
-  const [encodedPayload, receivedSignature] = String(token || "").split(".");
-  if (!encodedPayload || !receivedSignature) {
-    return { ok: false, status: 401, message: "Token inválido." };
-  }
+    const key = entry.slice(0, separator).trim();
+    const value = entry.slice(separator + 1).trim();
+    if (!key) continue;
 
-  const expectedSignature = sign(encodedPayload);
-  const received = Buffer.from(receivedSignature);
-  const expected = Buffer.from(expectedSignature);
-  if (received.length !== expected.length || !crypto.timingSafeEqual(received, expected)) {
-    return { ok: false, status: 401, message: "Token inválido." };
-  }
-
-  try {
-    const payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
-    if (!payload.exp || payload.exp < Date.now()) {
-      return { ok: false, status: 401, message: "Sessão expirada." };
+    try {
+      cookies.set(key, decodeURIComponent(value));
+    } catch {
+      cookies.set(key, value);
     }
-  } catch {
-    return { ok: false, status: 401, message: "Token inválido." };
   }
 
-  return { ok: true };
+  return cookies;
 }
 
-function requireAdmin(req, res) {
-  const header = req.headers.authorization || "";
-  const token = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
-  const result = verifyToken(token);
+function adminTokenFromRequest(req) {
+  return parseCookies(req).get(ADMIN_SESSION_COOKIE) || "";
+}
+
+function sessionTokenHash(token) {
+  return crypto.createHash("sha256").update(String(token)).digest("base64url");
+}
+
+function isSecureRequest(req) {
+  return Boolean(
+    process.env.VERCEL ||
+      process.env.NODE_ENV === "production" ||
+      req.headers["x-forwarded-proto"] === "https" ||
+      req.socket?.encrypted,
+  );
+}
+
+function setAdminSessionCookie(req, res, token, maxAgeMs) {
+  const parts = [
+    `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(token)}`,
+    `Max-Age=${Math.max(0, Math.floor(maxAgeMs / 1000))}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Strict",
+  ];
+
+  if (isSecureRequest(req)) {
+    parts.push("Secure");
+  }
+
+  res.setHeader("Set-Cookie", parts.join("; "));
+}
+
+function clearAdminSessionCookie(req, res) {
+  setAdminSessionCookie(req, res, "", 0);
+}
+
+async function createAdminSession(req) {
+  const token = crypto.randomBytes(32).toString("base64url");
+  const now = Date.now();
+  const expiresAt = new Date(now + TOKEN_TTL_MS);
+
+  await adminSessionsCollection.insertOne({
+    tokenHash: sessionTokenHash(token),
+    createdAt: new Date(now),
+    expiresAt,
+    ip: clientIp(req),
+    userAgent: String(req.headers["user-agent"] || "").slice(0, 300),
+  });
+
+  return { token, expiresAt };
+}
+
+async function destroyAdminSession(req) {
+  const token = adminTokenFromRequest(req);
+  if (!token) return;
+
+  await adminSessionsCollection.deleteOne({ tokenHash: sessionTokenHash(token) });
+}
+
+async function verifyAdminSession(token) {
+  if (!token) {
+    return { ok: false, status: 401, message: "Sessão inválida." };
+  }
+
+  const session = await adminSessionsCollection.findOne({ tokenHash: sessionTokenHash(token) });
+  if (!session) {
+    return { ok: false, status: 401, message: "Sessão inválida." };
+  }
+
+  if (!session.expiresAt || session.expiresAt.getTime() < Date.now()) {
+    await adminSessionsCollection.deleteOne({ _id: session._id });
+    return { ok: false, status: 401, message: "Sessão expirada." };
+  }
+
+  return { ok: true, session };
+}
+
+async function requireAdmin(req, res) {
+  const result = await verifyAdminSession(adminTokenFromRequest(req));
 
   if (!result.ok) {
     sendError(res, result.status, result.message);
@@ -430,6 +549,7 @@ async function connectDatabase() {
   settingsCollection = database.collection("settings");
   imagesBucket = new GridFSBucket(database, { bucketName: "productImages" });
   loginAttemptsCollection = database.collection("loginAttempts");
+  adminSessionsCollection = database.collection("adminSessions");
 
   await productsCollection.createIndex({ id: 1 }, { unique: true });
   await productsCollection.createIndex({ categoryId: 1, model: 1 });
@@ -438,6 +558,8 @@ async function connectDatabase() {
   // TTL index: stale login-attempt records auto-expire so the collection
   // never grows unbounded.
   await loginAttemptsCollection.createIndex({ expireAt: 1 }, { expireAfterSeconds: 0 });
+  await adminSessionsCollection.createIndex({ tokenHash: 1 }, { unique: true });
+  await adminSessionsCollection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
   await seedCatalogIfNeeded();
 }
 
@@ -469,9 +591,25 @@ function validateProductPayload(payload, options = {}) {
     return { ok: false, message: "Categoria inválida." };
   }
 
-  const model = String(payload.model || "").trim();
+  const model = String(payload.model || "")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .trim();
   if (!model) {
     return { ok: false, message: "Informe o modelo do produto." };
+  }
+
+  if (model.length > MODEL_MAX_LENGTH) {
+    return { ok: false, message: `Modelo muito longo. Use até ${MODEL_MAX_LENGTH} caracteres.` };
+  }
+
+  const description = String(payload.description || "")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
+    .trim();
+  if (description.length > DESCRIPTION_MAX_LENGTH) {
+    return {
+      ok: false,
+      message: `Descrição muito longa. Use até ${DESCRIPTION_MAX_LENGTH} caracteres.`,
+    };
   }
 
   if (options.requireImage && !payload.image?.data) {
@@ -485,7 +623,7 @@ function validateProductPayload(payload, options = {}) {
       mainCategory: category.mainCategory,
       subCategory: category.subCategory,
       model,
-      description: String(payload.description || "").trim(),
+      description,
     },
   };
 }
@@ -496,18 +634,162 @@ function safeUploadName(filename, extension) {
   return `${Date.now()}-${crypto.randomUUID()}-${safeBaseName}.${extension}`;
 }
 
+function decodeBase64Image(data) {
+  const rawData = String(data || "")
+    .replace(/^data:[^,]+,/, "")
+    .replace(/\s/g, "");
+
+  if (!rawData || rawData.length % 4 === 1 || !/^[A-Za-z0-9+/]+={0,2}$/.test(rawData)) {
+    const error = new Error("Imagem inválida.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return Buffer.from(rawData, "base64");
+}
+
+function detectImageType(buffer) {
+  if (
+    buffer.length >= 3 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  ) {
+    return { contentType: "image/jpeg", extension: "jpg" };
+  }
+
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer.toString("ascii", 1, 4) === "PNG" &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) {
+    return { contentType: "image/png", extension: "png" };
+  }
+
+  if (
+    buffer.length >= 12 &&
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return { contentType: "image/webp", extension: "webp" };
+  }
+
+  return null;
+}
+
+function stripJpegMetadata(buffer) {
+  if (buffer.length < 4 || buffer[0] !== 0xff || buffer[1] !== 0xd8) return buffer;
+
+  const chunks = [buffer.subarray(0, 2)];
+  let offset = 2;
+
+  while (offset + 4 <= buffer.length) {
+    if (buffer[offset] !== 0xff) {
+      chunks.push(buffer.subarray(offset));
+      return Buffer.concat(chunks);
+    }
+
+    const marker = buffer[offset + 1];
+    if (marker === 0xda || marker === 0xd9) {
+      chunks.push(buffer.subarray(offset));
+      return Buffer.concat(chunks);
+    }
+
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+      chunks.push(buffer.subarray(offset, offset + 2));
+      offset += 2;
+      continue;
+    }
+
+    const segmentLength = buffer.readUInt16BE(offset + 2);
+    const segmentEnd = offset + 2 + segmentLength;
+    if (segmentLength < 2 || segmentEnd > buffer.length) return buffer;
+
+    const isMetadataSegment = marker === 0xe1 || marker === 0xed || marker === 0xfe;
+    if (!isMetadataSegment) {
+      chunks.push(buffer.subarray(offset, segmentEnd));
+    }
+
+    offset = segmentEnd;
+  }
+
+  return Buffer.concat(chunks);
+}
+
+function stripPngMetadata(buffer) {
+  const signature = buffer.subarray(0, 8);
+  const chunks = [signature];
+  const metadataChunks = new Set(["tEXt", "zTXt", "iTXt", "tIME", "eXIf"]);
+  let offset = 8;
+
+  while (offset + 12 <= buffer.length) {
+    const chunkLength = buffer.readUInt32BE(offset);
+    const chunkType = buffer.toString("ascii", offset + 4, offset + 8);
+    const chunkEnd = offset + 12 + chunkLength;
+    if (chunkEnd > buffer.length) return buffer;
+
+    if (!metadataChunks.has(chunkType)) {
+      chunks.push(buffer.subarray(offset, chunkEnd));
+    }
+
+    offset = chunkEnd;
+    if (chunkType === "IEND") break;
+  }
+
+  return Buffer.concat(chunks);
+}
+
+function stripWebpMetadata(buffer) {
+  const chunks = [];
+  let offset = 12;
+  let changed = false;
+
+  while (offset + 8 <= buffer.length) {
+    const chunkType = buffer.toString("ascii", offset, offset + 4);
+    const chunkSize = buffer.readUInt32LE(offset + 4);
+    const chunkEnd = offset + 8 + chunkSize;
+    const paddedEnd = chunkEnd + (chunkSize % 2);
+    if (chunkEnd > buffer.length || paddedEnd > buffer.length) return buffer;
+
+    if (chunkType === "EXIF" || chunkType === "XMP ") {
+      changed = true;
+    } else {
+      chunks.push(buffer.subarray(offset, paddedEnd));
+    }
+
+    offset = paddedEnd;
+  }
+
+  if (!changed) return buffer;
+
+  const riffSize = 4 + chunks.reduce((total, chunk) => total + chunk.length, 0);
+  const header = Buffer.from(buffer.subarray(0, 12));
+  header.writeUInt32LE(riffSize, 4);
+  return Buffer.concat([header, ...chunks]);
+}
+
+function stripImageMetadata(buffer, contentType) {
+  if (contentType === "image/jpeg") return stripJpegMetadata(buffer);
+  if (contentType === "image/png") return stripPngMetadata(buffer);
+  if (contentType === "image/webp") return stripWebpMetadata(buffer);
+  return buffer;
+}
+
 async function writeUploadedImage(image) {
   if (!image?.data) return null;
 
-  const contentType = String(image.contentType || "").toLowerCase();
-  const extension = IMAGE_TYPES[contentType];
-  if (!extension) {
+  const claimedContentType = String(image.contentType || "").toLowerCase();
+  if (!IMAGE_TYPES[claimedContentType]) {
     const error = new Error("Formato de imagem inválido. Use PNG, JPG ou WebP.");
     error.statusCode = 400;
     throw error;
   }
 
-  const buffer = Buffer.from(String(image.data), "base64");
+  let buffer = decodeBase64Image(image.data);
   if (!buffer.length) {
     const error = new Error("Arquivo de imagem vazio.");
     error.statusCode = 400;
@@ -515,17 +797,26 @@ async function writeUploadedImage(image) {
   }
 
   if (buffer.length > IMAGE_LIMIT_BYTES) {
-    const error = new Error(`Imagem muito grande. Limite atual: ${process.env.IMAGE_LIMIT_MB || 8} MB.`);
+    const error = new Error(`Imagem muito grande. Limite atual: ${IMAGE_LIMIT_MB} MB.`);
     error.statusCode = 413;
     throw error;
   }
 
+  const detectedType = detectImageType(buffer);
+  if (!detectedType || detectedType.contentType !== claimedContentType) {
+    const error = new Error("O conteúdo da imagem não corresponde ao formato enviado.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  buffer = stripImageMetadata(buffer, detectedType.contentType);
+
   return new Promise((resolve, reject) => {
-    const uploadStream = imagesBucket.openUploadStream(safeUploadName(image.filename, extension), {
-      contentType,
+    const uploadStream = imagesBucket.openUploadStream(safeUploadName(image.filename, detectedType.extension), {
+      contentType: detectedType.contentType,
       metadata: {
         originalName: image.filename || "",
-        contentType,
+        contentType: detectedType.contentType,
         uploadedAt: new Date(),
       },
     });
@@ -562,9 +853,10 @@ async function streamCatalogImage(res, imageId) {
     return;
   }
 
+  setSecurityHeaders(res);
   res.writeHead(200, {
     "Content-Type": file.contentType || file.metadata?.contentType || "application/octet-stream",
-    "Cache-Control": "public, max-age=31536000, immutable",
+    "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
   });
 
   imagesBucket.openDownloadStream(objectId).pipe(res);
@@ -578,6 +870,11 @@ async function handleApi(req, res, pathname) {
       database: "mongodb",
       dbName: MONGODB_DB_NAME,
     });
+    return;
+  }
+
+  if (req.method === "GET" && pathname === "/api/config") {
+    sendJson(res, 200, { imageLimitMb: IMAGE_LIMIT_MB });
     return;
   }
 
@@ -617,12 +914,27 @@ async function handleApi(req, res, pathname) {
     }
 
     await clearLoginAttempts(ip);
-    sendJson(res, 200, { token: createToken(), expiresInMs: TOKEN_TTL_MS });
+    const session = await createAdminSession(req);
+    setAdminSessionCookie(req, res, session.token, TOKEN_TTL_MS);
+    sendJson(res, 200, { expiresInMs: TOKEN_TTL_MS });
+    return;
+  }
+
+  if (req.method === "GET" && pathname === "/api/admin/session") {
+    if (!(await requireAdmin(req, res))) return;
+    sendJson(res, 200, { ok: true, expiresInMs: TOKEN_TTL_MS });
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/admin/logout") {
+    await destroyAdminSession(req);
+    clearAdminSessionCookie(req, res);
+    sendJson(res, 200, { ok: true });
     return;
   }
 
   if (pathname.startsWith("/api/admin/products")) {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireAdmin(req, res))) return;
 
     if (req.method === "POST" && pathname === "/api/admin/products") {
       const payload = await readJsonBody(req);
@@ -707,6 +1019,15 @@ async function handleApi(req, res, pathname) {
 }
 
 export async function handleApiRequest(req, res, pathname) {
+  setSecurityHeaders(res);
+  setCorsHeaders(req, res);
+
+  if (req.method === "OPTIONS") {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
   await ensureDatabase();
 
   const requestPath =
@@ -739,8 +1060,13 @@ function safeJoin(baseDir, requestPath) {
   const normalizedBase = path.resolve(baseDir);
   const relativePath = decodeURIComponent(requestPath).replace(/^\/+/, "");
   const targetPath = path.resolve(normalizedBase, relativePath);
+  const relativeToBase = path.relative(normalizedBase, targetPath);
 
-  if (!targetPath.toLowerCase().startsWith(normalizedBase.toLowerCase())) {
+  if (
+    relativeToBase === ".." ||
+    relativeToBase.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativeToBase)
+  ) {
     return null;
   }
 
@@ -757,6 +1083,7 @@ async function fileExists(filePath) {
 }
 
 async function streamFile(res, filePath) {
+  setSecurityHeaders(res);
   res.writeHead(200, { "Content-Type": contentTypeFor(filePath) });
   fsSync.createReadStream(filePath).pipe(res);
 }
@@ -788,6 +1115,7 @@ async function serveStatic(req, res, pathname) {
 
 const server = http.createServer(async (req, res) => {
   try {
+    setSecurityHeaders(res);
     setCorsHeaders(req, res);
 
     if (req.method === "OPTIONS") {
