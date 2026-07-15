@@ -7,6 +7,7 @@ import { catalogCategories, getCategoryMeta } from "@/data/categories";
 import {
   CatalogItem,
   fetchCatalog,
+  normalizeSearchText,
   productSearchText,
   resolveCatalogImage,
 } from "@/lib/catalog";
@@ -58,7 +59,7 @@ const CatalogPage = () => {
   }, []);
 
   const filteredProducts = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const normalizedSearch = normalizeSearchText(searchTerm.trim());
 
     return products.filter((product) => {
       const matchesCategory =
@@ -204,6 +205,8 @@ const CatalogPage = () => {
                           <img
                             src={resolveCatalogImage(product)}
                             alt={product.model}
+                            loading="lazy"
+                            decoding="async"
                             className="max-w-full max-h-full object-contain"
                           />
                         </div>

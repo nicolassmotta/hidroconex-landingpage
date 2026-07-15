@@ -1,5 +1,4 @@
 import logo from "@/assets/Logo/logo-hidroconex.jpeg";
-import { Phone, Mail, MapPin } from "lucide-react";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -60,22 +59,22 @@ const Footer = () => {
           <div>
             <h4 className="font-bold text-lg mb-4">Contato</h4>
             <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-primary">Endereço</p>
                 <span className="text-secondary-foreground/70 text-sm">
                   R. Monteiro Lobato, 750<br />
                   Distrito Ind. Campo Verdi<br />
                   São José do Rio Preto - SP
                 </span>
               </div>
-              <div className="flex items-center gap-3">
-                <Phone className="w-5 h-5 text-primary shrink-0" />
+              <div>
+                <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-primary">Telefone</p>
                 <a href="tel:+5517997726171" className="text-secondary-foreground/70 text-sm hover:text-primary transition-colors">
                   (17) 99772-6171
                 </a>
               </div>
-              <div className="flex items-center gap-3">
-                <Mail className="w-5 h-5 text-primary shrink-0" />
+              <div>
+                <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-primary">E-mail</p>
                 <a href="mailto:hidroconex@terra.com.br" className="text-secondary-foreground/70 text-sm hover:text-primary transition-colors">
                   hidroconex@terra.com.br
                 </a>

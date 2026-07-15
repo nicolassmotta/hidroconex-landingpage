@@ -56,9 +56,33 @@ const LOGIN_BLOCK_MS =
     : 15) *
   60 *
   1000;
+const CONFIGURED_CONTACT_MAX_ATTEMPTS = Number(process.env.CONTACT_MAX_ATTEMPTS || 5);
+const CONTACT_MAX_ATTEMPTS =
+  Number.isFinite(CONFIGURED_CONTACT_MAX_ATTEMPTS) && CONFIGURED_CONTACT_MAX_ATTEMPTS > 0
+    ? CONFIGURED_CONTACT_MAX_ATTEMPTS
+    : 5;
+const CONFIGURED_CONTACT_WINDOW_MIN = Number(process.env.CONTACT_WINDOW_MIN || 10);
+const CONTACT_WINDOW_MS =
+  (Number.isFinite(CONFIGURED_CONTACT_WINDOW_MIN) && CONFIGURED_CONTACT_WINDOW_MIN > 0
+    ? CONFIGURED_CONTACT_WINDOW_MIN
+    : 10) *
+  60 *
+  1000;
+const CONFIGURED_CONTACT_BLOCK_MIN = Number(process.env.CONTACT_BLOCK_MIN || 20);
+const CONTACT_BLOCK_MS =
+  (Number.isFinite(CONFIGURED_CONTACT_BLOCK_MIN) && CONFIGURED_CONTACT_BLOCK_MIN > 0
+    ? CONFIGURED_CONTACT_BLOCK_MIN
+    : 20) *
+  60 *
+  1000;
 const ADMIN_SESSION_COOKIE = "hidroconex_admin_session";
 const MODEL_MAX_LENGTH = 120;
 const DESCRIPTION_MAX_LENGTH = 1000;
+const CONTACT_NAME_MAX_LENGTH = 120;
+const CONTACT_PHONE_MAX_LENGTH = 40;
+const CONTACT_EMAIL_MAX_LENGTH = 160;
+const CONTACT_MESSAGE_MAX_LENGTH = 2000;
+const WEB3FORMS_ENDPOINT = "https://api.web3forms.com/submit";
 
 const CATEGORY_MAP = {
   "rm-luvas": { mainCategory: "Reservatórios Metálicos", subCategory: "Luvas" },
@@ -83,6 +107,7 @@ let settingsCollection;
 let imagesBucket;
 let loginAttemptsCollection;
 let adminSessionsCollection;
+let contactAttemptsCollection;
 let databaseReadyPromise;
 
 function loadEnv(filePath) {
@@ -138,13 +163,13 @@ function contentSecurityPolicy() {
     "base-uri 'self'",
     "object-src 'none'",
     "frame-ancestors 'none'",
-    "script-src 'self' https://hcaptcha.com https://*.hcaptcha.com",
+    "script-src 'self' 'sha256-9HIY6JP1CZXL0iAbHgdRj4vXqz4EG54Pr+S4KjgVm4I=' https://hcaptcha.com https://*.hcaptcha.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https:",
-    "connect-src 'self' https://api.web3forms.com https://hcaptcha.com https://*.hcaptcha.com",
+    "connect-src 'self' https://hcaptcha.com https://*.hcaptcha.com",
     "frame-src https://www.google.com https://*.google.com https://hcaptcha.com https://*.hcaptcha.com",
-    "form-action 'self' https://api.web3forms.com",
+    "form-action 'self'",
   ].join("; ");
 }
 
@@ -355,6 +380,136 @@ async function clearLoginAttempts(ip) {
   await loginAttemptsCollection.deleteOne({ _id: ip });
 }
 
+async function getContactBlock(ip) {
+  const doc = await contactAttemptsCollection.findOne({ _id: ip });
+  if (doc?.blockedUntil && doc.blockedUntil > Date.now()) {
+    return doc.blockedUntil - Date.now();
+  }
+  return 0;
+}
+
+async function registerContactAttempt(ip) {
+  const now = Date.now();
+  const doc = await contactAttemptsCollection.findOne({ _id: ip });
+  const withinWindow = doc?.windowStart && now - doc.windowStart < CONTACT_WINDOW_MS;
+  const count = (withinWindow ? doc.count || 0 : 0) + 1;
+
+  const update = {
+    count,
+    windowStart: withinWindow ? doc.windowStart : now,
+    expireAt: new Date(now + CONTACT_WINDOW_MS + CONTACT_BLOCK_MS),
+  };
+
+  if (count >= CONTACT_MAX_ATTEMPTS) {
+    update.blockedUntil = now + CONTACT_BLOCK_MS;
+    update.count = 0;
+    update.windowStart = now;
+  }
+
+  await contactAttemptsCollection.updateOne({ _id: ip }, { $set: update }, { upsert: true });
+}
+
+function sanitizeContactText(value) {
+  return String(value || "")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
+    .trim();
+}
+
+function isValidContactEmail(value) {
+  if (!value) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function validateContactPayload(payload) {
+  const name = sanitizeContactText(payload.name);
+  const phone = sanitizeContactText(payload.phone);
+  const email = sanitizeContactText(payload.email).toLowerCase();
+  const message = sanitizeContactText(payload.message);
+  const captchaToken = sanitizeContactText(payload.captchaToken || payload["h-captcha-response"]);
+
+  if (!name) return { ok: false, message: "Informe seu nome." };
+  if (name.length > CONTACT_NAME_MAX_LENGTH) {
+    return { ok: false, message: `Nome muito longo. Use até ${CONTACT_NAME_MAX_LENGTH} caracteres.` };
+  }
+
+  if (!phone) return { ok: false, message: "Informe um telefone para contato." };
+  if (phone.length > CONTACT_PHONE_MAX_LENGTH) {
+    return {
+      ok: false,
+      message: `Telefone muito longo. Use até ${CONTACT_PHONE_MAX_LENGTH} caracteres.`,
+    };
+  }
+
+  if (email.length > CONTACT_EMAIL_MAX_LENGTH || !isValidContactEmail(email)) {
+    return { ok: false, message: "Informe um e-mail válido ou deixe o campo vazio." };
+  }
+
+  if (!message) return { ok: false, message: "Descreva o que você precisa." };
+  if (message.length > CONTACT_MESSAGE_MAX_LENGTH) {
+    return {
+      ok: false,
+      message: `Mensagem muito longa. Use até ${CONTACT_MESSAGE_MAX_LENGTH} caracteres.`,
+    };
+  }
+
+  if (!captchaToken) return { ok: false, message: "Confirme o captcha antes de enviar." };
+
+  return {
+    ok: true,
+    contact: {
+      name,
+      phone,
+      email,
+      message,
+      captchaToken,
+    },
+  };
+}
+
+function web3FormsAccessKey() {
+  return process.env.WEB3FORMS_ACCESS_KEY || process.env.VITE_WEB3FORMS_ACCESS_KEY || "";
+}
+
+async function submitContactToWeb3Forms(contact) {
+  const accessKey = web3FormsAccessKey();
+  if (!accessKey) {
+    const error = new Error("WEB3FORMS_ACCESS_KEY não configurado no backend.");
+    error.statusCode = 500;
+    throw error;
+  }
+
+  const response = await fetch(WEB3FORMS_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      access_key: accessKey,
+      subject: "Novo contato pelo site Hidroconex",
+      from_name: contact.name,
+      name: contact.name,
+      email: contact.email,
+      phone: contact.phone,
+      message: contact.message,
+      "h-captcha-response": contact.captchaToken,
+    }),
+  });
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok || data?.success !== true) {
+    const error = new Error(
+      typeof data?.message === "string"
+        ? data.message
+        : "Não foi possível enviar sua solicitação agora.",
+    );
+    error.statusCode = response.ok ? 502 : response.status;
+    throw error;
+  }
+
+  return data;
+}
+
 async function readJsonBody(req) {
   const chunks = [];
   let totalLength = 0;
@@ -550,6 +705,7 @@ async function connectDatabase() {
   imagesBucket = new GridFSBucket(database, { bucketName: "productImages" });
   loginAttemptsCollection = database.collection("loginAttempts");
   adminSessionsCollection = database.collection("adminSessions");
+  contactAttemptsCollection = database.collection("contactAttempts");
 
   await productsCollection.createIndex({ id: 1 }, { unique: true });
   await productsCollection.createIndex({ categoryId: 1, model: 1 });
@@ -560,6 +716,7 @@ async function connectDatabase() {
   await loginAttemptsCollection.createIndex({ expireAt: 1 }, { expireAfterSeconds: 0 });
   await adminSessionsCollection.createIndex({ tokenHash: 1 }, { unique: true });
   await adminSessionsCollection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+  await contactAttemptsCollection.createIndex({ expireAt: 1 }, { expireAfterSeconds: 0 });
   await seedCatalogIfNeeded();
 }
 
@@ -867,14 +1024,47 @@ async function handleApi(req, res, pathname) {
     sendJson(res, 200, {
       ok: true,
       service: "hidroconex-api",
+      dbName: MONGODB_DB_NAME,
+    });
+    return;
+  }
+
+  if (req.method === "GET" && pathname === "/api/ready") {
+    const productCount = await productsCollection.countDocuments();
+    sendJson(res, 200, {
+      ok: true,
+      service: "hidroconex-api",
       database: "mongodb",
       dbName: MONGODB_DB_NAME,
+      productCount,
     });
     return;
   }
 
   if (req.method === "GET" && pathname === "/api/config") {
     sendJson(res, 200, { imageLimitMb: IMAGE_LIMIT_MB });
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/contact") {
+    const ip = clientIp(req);
+    const blockedForMs = await getContactBlock(ip);
+    if (blockedForMs > 0) {
+      const minutes = Math.ceil(blockedForMs / 60000);
+      sendError(res, 429, `Muitas mensagens em sequência. Tente novamente em ${minutes} min.`);
+      return;
+    }
+
+    const payload = await readJsonBody(req);
+    const validation = validateContactPayload(payload);
+    if (!validation.ok) {
+      sendError(res, 400, validation.message);
+      return;
+    }
+
+    await registerContactAttempt(ip);
+    await submitContactToWeb3Forms(validation.contact);
+    sendJson(res, 200, { ok: true });
     return;
   }
 
@@ -961,6 +1151,42 @@ async function handleApi(req, res, pathname) {
       return;
     }
 
+    if (req.method === "DELETE" && pathname === "/api/admin/products") {
+      const payload = await readJsonBody(req);
+      const ids = Array.isArray(payload.ids)
+        ? [...new Set(payload.ids.map((id) => String(id)).filter(Boolean))]
+        : [];
+
+      if (!ids.length) {
+        sendError(res, 400, "Informe ao menos um produto para remover.");
+        return;
+      }
+
+      if (ids.length > 100) {
+        sendError(res, 400, "Remova no máximo 100 produtos por vez.");
+        return;
+      }
+
+      const products = await productsCollection.find({ id: { $in: ids } }).toArray();
+      const foundIds = new Set(products.map((product) => product.id));
+      const missingIds = ids.filter((id) => !foundIds.has(id));
+
+      for (const product of products) {
+        await deleteUploadedImage(product.imageId);
+      }
+
+      if (products.length) {
+        await productsCollection.deleteMany({ id: { $in: [...foundIds] } });
+      }
+
+      sendJson(res, 200, {
+        removed: products.length,
+        missing: missingIds.length,
+        missingIds,
+      });
+      return;
+    }
+
     const productId = decodeURIComponent(pathname.replace("/api/admin/products/", ""));
     const existingProduct = await productsCollection.findOne({ id: productId });
 
@@ -1018,6 +1244,10 @@ async function handleApi(req, res, pathname) {
   sendError(res, 404, "Rota não encontrada.");
 }
 
+function routeUsesDatabase(method, pathname) {
+  return !(method === "GET" && (pathname === "/api/health" || pathname === "/api/config"));
+}
+
 export async function handleApiRequest(req, res, pathname) {
   setSecurityHeaders(res);
   setCorsHeaders(req, res);
@@ -1028,11 +1258,13 @@ export async function handleApiRequest(req, res, pathname) {
     return;
   }
 
-  await ensureDatabase();
-
   const requestPath =
     pathname ||
     decodeURIComponent(new URL(req.url || "/", `http://${req.headers.host || "localhost"}`).pathname);
+
+  if (routeUsesDatabase(req.method, requestPath)) {
+    await ensureDatabase();
+  }
 
   await handleApi(req, res, requestPath);
 }
@@ -1161,6 +1393,16 @@ process.on("SIGTERM", () => {
 function redactMongoUri(uri) {
   return uri.replace(/\/\/([^:]+):([^@]+)@/, "//$1:***@");
 }
+
+export const __test__ = {
+  cleanText,
+  decodeBase64Image,
+  detectImageType,
+  routeUsesDatabase,
+  stripImageMetadata,
+  validateContactPayload,
+  validateProductPayload,
+};
 
 async function startServer() {
   try {

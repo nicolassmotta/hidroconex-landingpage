@@ -20,7 +20,7 @@ mexer no código.
 - **Catálogo público** — produtos organizados por categoria e subcategoria, com imagens.
 - **Painel administrativo** (`/admin`) — login protegido por senha para gerenciar
   produtos e fotos, com upload de imagens armazenadas no próprio banco.
-- **Formulário de contato** — envio via Web3Forms com proteção anti-spam por hCaptcha.
+- **Formulário de contato** — envio pelo backend via Web3Forms com hCaptcha e rate limiting.
 - **Segurança** — autenticação por token assinado (HMAC), comparação de senha em
   tempo constante e rate limiting nas tentativas de login.
 
@@ -33,7 +33,7 @@ mexer no código.
 | Backend     | Node.js puro (módulo `http` nativo, sem Express)                   |
 | Banco       | MongoDB — dados do catálogo + imagens via GridFS                   |
 | Integrações | Web3Forms + hCaptcha (formulário de contato)                       |
-| Testes      | Vitest + Testing Library                                           |
+| Testes      | Vitest + Testing Library + Playwright                              |
 | Deploy      | Vercel (frontend estático + API como Serverless Function)          |
 
 ## Estrutura do projeto
@@ -90,8 +90,8 @@ ADMIN_PASSWORD="uma_senha_forte"
 PORT=3333
 IMAGE_LIMIT_MB=8
 
-# Frontend — formulário de contato
-VITE_WEB3FORMS_ACCESS_KEY="sua_chave_web3forms"
+# Contato
+WEB3FORMS_ACCESS_KEY="sua_chave_web3forms"
 ```
 
 | Variável                  | Obrigatória | Padrão                | Descrição                                   |
@@ -101,12 +101,14 @@ VITE_WEB3FORMS_ACCESS_KEY="sua_chave_web3forms"
 | `ADMIN_PASSWORD`          | Sim         | —                     | Senha do painel administrativo              |
 | `PORT`                    | Não         | `3333`                | Porta do backend Node                       |
 | `IMAGE_LIMIT_MB`          | Não         | `8` (`3` na Vercel)   | Tamanho máximo de imagem no upload          |
-| `VITE_WEB3FORMS_ACCESS_KEY` | Sim       | —                     | Chave do Web3Forms (formulário de contato)  |
+| `WEB3FORMS_ACCESS_KEY`     | Sim       | —                     | Chave do Web3Forms usada pela API de contato |
 
-Variáveis opcionais de ajuste fino do login também são suportadas:
+Variáveis opcionais de ajuste fino do login e do contato também são suportadas:
 `ADMIN_TOKEN_TTL_HOURS`, `LOGIN_MAX_ATTEMPTS`, `LOGIN_WINDOW_MIN`,
-`LOGIN_BLOCK_MIN` e `CORS_ORIGIN`. O painel admin usa sessão em cookie
-`HttpOnly`; o frontend não armazena token em `localStorage`.
+`LOGIN_BLOCK_MIN`, `CONTACT_MAX_ATTEMPTS`, `CONTACT_WINDOW_MIN`,
+`CONTACT_BLOCK_MIN` e `CORS_ORIGIN`. O painel admin usa sessão em cookie
+`HttpOnly`; o frontend não armazena token em `localStorage`. O formulário
+envia para `/api/contact`, então a chave do Web3Forms não é exposta no bundle.
 
 O backend cria automaticamente as coleções `products`, `settings`,
 `loginAttempts`, `adminSessions` e os buckets `productImages.*` (GridFS) — não é preciso
@@ -121,7 +123,9 @@ configurá-las manualmente.
 | `/admin`                   | Painel para gerenciar produtos e fotos     |
 | `/api/catalog`             | API pública do catálogo                    |
 | `/api/catalog/images/:id`  | Imagens servidas do MongoDB/GridFS         |
-| `/api/health`              | Status da API e do MongoDB                 |
+| `/api/contact`             | Envio do formulário de contato             |
+| `/api/health`              | Status leve da API                         |
+| `/api/ready`               | Status da API com checagem do MongoDB      |
 
 ## Scripts
 
@@ -133,6 +137,8 @@ npm run build     # build de produção
 npm run start     # serve API + frontend buildado
 npm run lint      # lint
 npm run test      # testes (Vitest)
+npm run test:e2e  # smoke test com Playwright
+npm run optimize:images # gera WebP otimizado a partir dos PNG originais
 ```
 
 ## Deploy (Vercel)
@@ -144,7 +150,7 @@ Vercel:
 - `MONGODB_URI` (use MongoDB Atlas ou outro servidor de produção)
 - `MONGODB_DB_NAME`
 - `ADMIN_PASSWORD` (senha forte)
-- `VITE_WEB3FORMS_ACCESS_KEY`
+- `WEB3FORMS_ACCESS_KEY`
 - `IMAGE_LIMIT_MB` (recomendado: `3`)
 
 Configure o runtime da Vercel para Node.js 20.x ou superior.

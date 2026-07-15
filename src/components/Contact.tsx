@@ -1,4 +1,3 @@
-import { MapPin, Phone, Clock, Mail } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 
@@ -6,6 +5,45 @@ const horariosAgrupados = [
   { dia: "Segunda a quinta", horas: "07:30 às 11:30 | 12:42 às 17:00" },
   { dia: "Sexta-feira", horas: "07:30 às 11:30 | 12:42 às 16:00" },
   { dia: "Sábado e domingo", horas: "Fechado" },
+];
+
+const contactDetails = [
+  {
+    label: "Endereço",
+    value: (
+      <>
+        R. Monteiro Lobato, 750
+        <br />
+        Distrito Ind. Campo Verdi
+        <br />
+        São José do Rio Preto - SP
+      </>
+    ),
+  },
+  {
+    label: "Telefone",
+    value: (
+      <a
+        href="https://wa.me/5517997726171?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20Hidroconex!"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hover:text-lime-dark transition-colors"
+      >
+        (17) 99772-6171
+      </a>
+    ),
+  },
+  {
+    label: "E-mail",
+    value: (
+      <a
+        href="mailto:hidroconex@terra.com.br"
+        className="hover:text-lime-dark transition-colors"
+      >
+        hidroconex@terra.com.br
+      </a>
+    ),
+  },
 ];
 
 const Contact = () => {
@@ -61,41 +99,21 @@ const Contact = () => {
 
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
           <div className="space-y-6">
-            <div className="card-industrial p-6 flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <MapPin className="w-6 h-6 text-lime-dark" />
-              </div>
-              <div>
-                <h3 className="font-bold text-foreground mb-1">Endereço</h3>
-                <p className="text-muted-foreground">
-                  R. Monteiro Lobato, 750<br />
-                  Distrito Ind. Campo Verdi<br />
-                  São José do Rio Preto - SP
-                </p>
-              </div>
-            </div>
-
-            <div className="card-industrial p-6 flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Phone className="w-6 h-6 text-lime-dark" />
-              </div>
-              <div>
-                <h3 className="font-bold text-foreground mb-1">Telefone</h3>
-                <a
-                  href="https://wa.me/5517997726171?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20Hidroconex!"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-lime-dark transition-colors"
+            <dl className="border-y border-border bg-background py-2">
+              {contactDetails.map((item) => (
+                <div
+                  key={item.label}
+                  className="grid gap-2 border-b border-border py-5 last:border-b-0 sm:grid-cols-[130px_1fr]"
                 >
-                  (17) 99772-6171
-                </a>
-              </div>
-            </div>
+                  <dt className="text-xs font-bold uppercase tracking-[0.2em] text-lime-dark">
+                    {item.label}
+                  </dt>
+                  <dd className="text-muted-foreground">{item.value}</dd>
+                </div>
+              ))}
+            </dl>
 
-            <div className="card-industrial p-6 flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Clock className="w-6 h-6 text-lime-dark" />
-              </div>
+            <div className="card-industrial p-6">
               <div className="flex-1">
                 <h3 className="font-bold text-foreground mb-4">Horário de funcionamento</h3>
 
@@ -140,20 +158,6 @@ const Contact = () => {
               </div>
             </div>
 
-            <div className="card-industrial p-6 flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Mail className="w-6 h-6 text-lime-dark" />
-              </div>
-              <div>
-                <h3 className="font-bold text-foreground mb-1">E-mail</h3>
-                <a
-                  href="mailto:hidroconex@terra.com.br"
-                  className="text-muted-foreground hover:text-lime-dark transition-colors"
-                >
-                  hidroconex@terra.com.br
-                </a>
-              </div>
-            </div>
           </div>
 
           <div className="card-industrial p-5 sm:p-8 relative">
@@ -177,13 +181,13 @@ const Contact = () => {
                   return;
                 }
 
-                const formData = new FormData(event.currentTarget);
+                const form = event.currentTarget;
+                const formData = new FormData(form);
                 const objectData = Object.fromEntries(formData);
-                objectData.access_key = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || "";
-                objectData["h-captcha-response"] = captchaToken;
+                objectData.captchaToken = captchaToken;
 
                 try {
-                  const response = await fetch("https://api.web3forms.com/submit", {
+                  const response = await fetch("/api/contact", {
                     method: "POST",
                     headers: {
                       "Content-Type": "application/json",
@@ -192,29 +196,34 @@ const Contact = () => {
                     body: JSON.stringify(objectData),
                   });
 
-                  const data = await response.json();
+                  const data = await response.json().catch(() => ({}));
 
-                  if (data.success) {
+                  if (response.ok) {
                     setSubmitStatus({
                       type: "success",
                       message: "Sua solicitação foi enviada com sucesso. Entraremos em contato em breve.",
                     });
-                    event.currentTarget.reset();
+                    form.reset();
                     setCaptchaToken(null);
                     captchaRef.current?.resetCaptcha();
                   } else {
                     setSubmitStatus({
                       type: "error",
                       message:
+                        data.error ||
                         data.message ||
                         "Ocorreu um erro ao enviar. Tente novamente ou fale conosco por WhatsApp.",
                     });
+                    setCaptchaToken(null);
+                    captchaRef.current?.resetCaptcha();
                   }
                 } catch {
                   setSubmitStatus({
                     type: "error",
                     message: "Erro de conexão. Verifique sua internet e tente novamente.",
                   });
+                  setCaptchaToken(null);
+                  captchaRef.current?.resetCaptcha();
                 } finally {
                   setIsSubmitting(false);
                 }

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { catalogCategoryGroups, CatalogCategory } from "@/data/categories";
 import { CatalogItem, fetchCatalog, resolveCatalogImage } from "@/lib/catalog";
@@ -20,7 +19,7 @@ const ProductCard = ({
 }) => (
   <a
     href={`/catalogo?categoria=${category.id}`}
-    className="card-industrial group border border-border shadow-card hover:shadow-card-hover rounded-xl overflow-hidden bg-card flex flex-col h-full"
+    className="card-industrial group overflow-hidden bg-card flex flex-col h-full"
     style={{ animationDelay: `${index * 0.1}s` }}
   >
     <div className="relative h-64 w-full overflow-hidden bg-white flex items-center justify-center p-6 border-b border-border">
@@ -28,6 +27,8 @@ const ProductCard = ({
       <img
         src={image}
         alt={category.title}
+        loading={index > 1 ? "lazy" : "eager"}
+        decoding="async"
         className="max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-500 ease-out"
       />
     </div>
@@ -41,7 +42,7 @@ const ProductCard = ({
 
       <div className="mt-4 flex items-center text-muted-foreground group-hover:text-lime-dark font-medium transition-colors duration-300">
         <span className="text-sm">Ver catálogo detalhado</span>
-        <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
+        <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1">→</span>
       </div>
     </div>
   </a>
@@ -145,7 +146,7 @@ const Products = () => {
             className="inline-flex items-center justify-center gap-2 bg-secondary text-secondary-foreground font-semibold px-8 py-4 rounded-lg hover:bg-secondary/90 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
           >
             Abrir catálogo completo
-            <ArrowRight className="w-5 h-5 ml-2" />
+            <span className="ml-1">→</span>
           </a>
         </div>
       </div>

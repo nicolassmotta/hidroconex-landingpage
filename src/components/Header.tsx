@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Menu, X } from "lucide-react";
 import logo from "@/assets/Logo/logo-hidroconex.jpeg";
 
 const Header = () => {
@@ -64,14 +63,28 @@ const Header = () => {
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className={`md:hidden p-2 transition-colors ${
+            className={`md:hidden flex h-11 w-11 flex-col items-center justify-center gap-1.5 rounded-md border transition-colors ${
               isScrolled || isMobileMenuOpen ? "text-foreground" : "text-secondary-foreground"
-            }`}
+            } border-current/20`}
             aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
             aria-expanded={isMobileMenuOpen}
             aria-controls="mobile-navigation"
           >
-            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            <span
+              className={`h-0.5 w-5 bg-current transition-transform ${
+                isMobileMenuOpen ? "translate-y-2 rotate-45" : ""
+              }`}
+            />
+            <span
+              className={`h-0.5 w-5 bg-current transition-opacity ${
+                isMobileMenuOpen ? "opacity-0" : ""
+              }`}
+            />
+            <span
+              className={`h-0.5 w-5 bg-current transition-transform ${
+                isMobileMenuOpen ? "-translate-y-2 -rotate-45" : ""
+              }`}
+            />
           </button>
         </div>
 

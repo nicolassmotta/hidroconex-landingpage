@@ -1,6 +1,11 @@
 import { useMemo, useState } from "react";
 import { catalogCategories } from "@/data/categories";
-import { CatalogItem, productSearchText, resolveCatalogImage } from "@/lib/catalog";
+import {
+  CatalogItem,
+  normalizeSearchText,
+  productSearchText,
+  resolveCatalogImage,
+} from "@/lib/catalog";
 
 export type MainGroup = "todos" | "tanques" | "reservatorios";
 export type SortKey = "recentes" | "az" | "categoria";
@@ -39,7 +44,7 @@ export function useAdminCatalogFilters(products: CatalogItem[]) {
   );
 
   const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
+    const term = normalizeSearchText(search.trim());
 
     const list = products.filter((product) => {
       const matchesGroup = group === "todos" || groupOf(product.categoryId) === group;

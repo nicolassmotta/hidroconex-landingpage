@@ -359,39 +359,30 @@ const AdminPage = () => {
     if (!ids.length) return;
 
     setIsSaving(true);
-    let removed = 0;
-    let failed = 0;
-    let authFailed = false;
+    try {
+      const result = await requestJson("/api/admin/products", {
+        method: "DELETE",
+        body: JSON.stringify({ ids }),
+      });
 
-    for (const id of ids) {
-      try {
-        await requestJson(`/api/admin/products/${encodeURIComponent(id)}`, {
-          method: "DELETE",
-        });
-        removed += 1;
-      } catch (error) {
-        if (isAuthError(error)) {
-          authFailed = true;
-        }
-        failed += 1;
+      setSelectedIds(new Set());
+      await loadProducts();
+
+      const removed = Number(result.removed || 0);
+      const missing = Number(result.missing || 0);
+      if (missing > 0) {
+        toast.error(`${removed} removido(s), ${missing} não encontrado(s).`);
+      } else {
+        toast.success(`${removed} produto(s) removido(s).`);
       }
-    }
+    } catch (error) {
+      if (isAuthError(error)) {
+        await logout("Sessão expirada. Faça login novamente.");
+      }
 
-    setSelectedIds(new Set());
-    setIsSaving(false);
-
-    if (authFailed) {
-      await logout("Sessão expirada. Faça login novamente.");
-      toast.error("Sessão expirada. Faça login novamente.");
-      return;
-    }
-
-    await loadProducts();
-
-    if (failed === 0) {
-      toast.success(`${removed} produto(s) removido(s).`);
-    } else {
-      toast.error(`${removed} removido(s), ${failed} não puderam ser removidos.`);
+      toast.error(getErrorMessage(error, "Não foi possível remover os produtos selecionados."));
+    } finally {
+      setIsSaving(false);
     }
   }
 

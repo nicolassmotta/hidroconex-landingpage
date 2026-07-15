@@ -1,5 +1,3 @@
-import { MapPin } from "lucide-react";
-
 const Location = () => {
   return (
     <section id="localizacao" className="section-padding bg-background">
@@ -33,7 +31,9 @@ const Location = () => {
 
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 text-center">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <MapPin className="w-5 h-5 text-lime-dark shrink-0" />
+            <span className="text-xs font-bold uppercase tracking-[0.22em] text-lime-dark">
+              Endereço
+            </span>
             <span>R. Monteiro Lobato, 750 - Distrito Ind. Campo Verdi</span>
           </div>
           <span className="hidden sm:block text-border">|</span>

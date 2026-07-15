@@ -1,10 +1,8 @@
-import { Factory, Users, Target, TrendingUp } from "lucide-react";
-
 const stats = [
-  { icon: Factory, value: "100%", label: "Fabricação própria" },
-  { icon: Users, value: "+150", label: "Clientes atendidos" },
-  { icon: Target, value: "Precisão", label: "Em cada peça" },
-  { icon: TrendingUp, value: "Qualidade", label: "Comprovada" },
+  { value: "01", label: "Leitura da aplicação", detail: "Entendimento de medida, rosca, pressão e uso final." },
+  { value: "02", label: "Fabricação e usinagem", detail: "Processo próprio com controle dimensional." },
+  { value: "03", label: "Conferência", detail: "Peças revisadas antes da entrega ou coleta." },
+  { value: "04", label: "Reposição", detail: "Modelos recorrentes organizados no catálogo." },
 ];
 
 const About = () => {
@@ -58,20 +56,18 @@ const About = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {stats.map((stat, index) => (
               <div
                 key={stat.label}
-                className="bg-card rounded-xl p-6 border border-border shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
+                className="border-l-2 border-primary bg-card p-6 shadow-card"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                  <stat.icon className="w-6 h-6 text-primary" />
-                </div>
-                <p className="text-2xl font-bold text-foreground mb-1">
+                <p className="text-sm font-bold tracking-[0.22em] text-primary mb-4">
                   {stat.value}
                 </p>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
+                <p className="text-lg font-bold text-foreground mb-2">{stat.label}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{stat.detail}</p>
               </div>
             ))}
           </div>

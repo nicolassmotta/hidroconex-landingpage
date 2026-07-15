@@ -1,84 +1,62 @@
-import { ArrowRight, Cog, Award, Users } from "lucide-react";
 import heroImage from "@/assets/AI/hero-industrial.jpg";
+
+const heroStats = [
+  { value: "14 anos", label: "de fabricação industrial" },
+  { value: "100%", label: "produção própria" },
+  { value: "+150", label: "clientes atendidos" },
+];
 
 const Hero = () => {
   return (
     <section
       id="inicio"
-      className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      className="relative min-h-[92vh] flex items-center overflow-hidden bg-secondary"
     >
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${heroImage})` }}
       >
-        <div className="absolute inset-0 bg-gradient-hero" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(210_50%_12%/.94),hsl(210_50%_16%/.78)_48%,hsl(210_50%_12%/.34))]" />
       </div>
 
       <div className="relative z-10 section-container py-32 md:py-40">
-        <div className="max-w-4xl">
-          <div className="inline-flex items-center gap-2 bg-primary/20 backdrop-blur-sm border border-primary/30 rounded-full px-4 py-2 mb-8 animate-fade-in">
-            <Cog className="w-4 h-4 text-primary" />
-            <span className="text-primary font-medium text-sm">
-              Fabricação industrial de alta precisão
-            </span>
-          </div>
-
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-secondary-foreground leading-tight mb-6 animate-fade-in-up">
-            Especialistas em{" "}
-            <span className="text-primary">conexões</span> e{" "}
-            <span className="text-primary">componentes de aço</span>
-          </h1>
-
-          <p className="text-lg md:text-xl text-secondary-foreground/80 mb-10 max-w-2xl animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
-            Fabricação com precisão e qualidade para o setor industrial.
-            Soluções para reservatórios, tanques e aplicações sob medida em
-            São José do Rio Preto e região.
+        <div className="max-w-5xl">
+          <p className="mb-7 border-l-2 border-primary pl-4 text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+            Hidroconex Indústria e Comércio
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 animate-fade-in-up" style={{ animationDelay: "0.4s" }}>
+          <h1 className="max-w-4xl text-4xl md:text-6xl lg:text-7xl font-bold text-secondary-foreground leading-[1.02] mb-7">
+            Conexões e componentes de aço para tanques e reservatórios.
+          </h1>
+
+          <p className="max-w-2xl text-lg md:text-xl text-secondary-foreground/80 mb-10 leading-relaxed">
+            Fabricação própria em São José do Rio Preto, com peças seriadas e sob
+            medida para operação industrial, armazenamento e interligação de
+            sistemas.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4">
             <a
               href="#contato"
-              className="btn-hero inline-flex items-center justify-center gap-2 group"
+              className="btn-hero inline-flex items-center justify-center"
             >
-              Solicitar orçamento
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              Solicitar orçamento técnico
             </a>
             <a
               href="/catalogo"
-              className="btn-secondary-hero inline-flex items-center justify-center gap-2"
+              className="btn-secondary-hero inline-flex items-center justify-center"
             >
-              Ver catálogo
+              Ver catálogo de peças
             </a>
           </div>
 
-          <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6 animate-fade-in-up" style={{ animationDelay: "0.6s" }}>
-            <div className="flex items-center gap-3 text-secondary-foreground/80">
-              <div className="p-2 bg-primary/20 rounded-lg">
-                <Award className="w-6 h-6 text-primary" />
+          <div className="mt-16 grid max-w-3xl grid-cols-1 border-y border-white/20 sm:grid-cols-3">
+            {heroStats.map((item) => (
+              <div key={item.value} className="py-5 sm:border-r sm:border-white/20 sm:px-6 first:pl-0 last:border-r-0">
+                <p className="text-2xl font-bold text-primary">{item.value}</p>
+                <p className="mt-1 text-sm text-secondary-foreground/70">{item.label}</p>
               </div>
-              <div>
-                <p className="font-semibold text-secondary-foreground">14 anos de fábrica</p>
-                <p className="text-sm text-secondary-foreground/60">Experiência comprovada</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-secondary-foreground/80">
-              <div className="p-2 bg-primary/20 rounded-lg">
-                <Cog className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="font-semibold text-secondary-foreground">Fabricação própria</p>
-                <p className="text-sm text-secondary-foreground/60">Controle de qualidade</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-secondary-foreground/80">
-              <div className="p-2 bg-primary/20 rounded-lg">
-                <Users className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="font-semibold text-secondary-foreground">+150 clientes</p>
-                <p className="text-sm text-secondary-foreground/60">Atendidos na região</p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </div>

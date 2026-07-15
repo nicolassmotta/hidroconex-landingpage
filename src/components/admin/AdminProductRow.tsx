@@ -46,6 +46,8 @@ export function AdminProductRow({
         <img
           src={resolveCatalogImage(product)}
           alt={product.model}
+          loading="lazy"
+          decoding="async"
           className="max-w-full max-h-full object-contain"
         />
       </div>

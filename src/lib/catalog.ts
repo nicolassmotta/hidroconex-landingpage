@@ -37,7 +37,7 @@ function validImageLimit(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
-const productImages = import.meta.glob("/src/assets/Products/**/*.png", {
+const optimizedProductImages = import.meta.glob("/src/assets/ProductsOptimized/**/*.webp", {
   eager: true,
   import: "default",
 }) as Record<string, string>;
@@ -67,33 +67,53 @@ function normalizeCatalogItem(product: CatalogItem): CatalogItem {
   };
 }
 
-function resolveStaticImage(importPath?: string): string {
-  if (!importPath) return "";
+export function normalizeSearchText(value?: string) {
+  return cleanText(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
 
-  const key = importPath.replace(/^\./, "");
-  let url = productImages[key];
+function optimizedPathFor(importPath?: string) {
+  if (!importPath) return "";
+  return importPath
+    .replace(/^\./, "")
+    .replace("/src/assets/Products/", "/src/assets/ProductsOptimized/")
+    .replace(/\.png$/i, ".webp");
+}
+
+function findImageByPath(imageMap: Record<string, string>, key: string): string {
+  if (!key) return "";
+
+  let url = imageMap[key];
 
   if (!url) {
-    url = productImages[key.normalize("NFC")];
+    url = imageMap[key.normalize("NFC")];
   }
 
   if (!url) {
-    url = productImages[key.normalize("NFD")];
+    url = imageMap[key.normalize("NFD")];
   }
 
   if (!url) {
     const filename = key.split("/").pop();
     if (filename) {
-      const foundKey = Object.keys(productImages).find((imageKey) =>
+      const foundKey = Object.keys(imageMap).find((imageKey) =>
         imageKey.endsWith(`/${filename}`),
       );
       if (foundKey) {
-        url = productImages[foundKey];
+        url = imageMap[foundKey];
       }
     }
   }
 
   return url ?? "";
+}
+
+function resolveStaticImage(importPath?: string): string {
+  if (!importPath) return "";
+
+  return findImageByPath(optimizedProductImages, optimizedPathFor(importPath));
 }
 
 export function resolveCatalogImage(product: Pick<CatalogItem, "imageUrl" | "importPath">): string {
@@ -175,14 +195,15 @@ export async function fetchAppConfig(): Promise<AppConfig> {
 }
 
 export function productSearchText(product: CatalogItem) {
-  return [
-    product.model,
-    product.description,
-    product.mainCategory,
-    product.subCategory,
-    product.categoryId,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+  return normalizeSearchText(
+    [
+      product.model,
+      product.description,
+      product.mainCategory,
+      product.subCategory,
+      product.categoryId,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
 }
