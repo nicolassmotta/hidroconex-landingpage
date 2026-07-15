@@ -438,11 +438,12 @@ async function failureSummary(limit = 20) {
   const now = Date.now();
   const since24h = new Date(now - 24 * 60 * 60 * 1000);
   const since7d = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  const visibleFailures = { type: { $ne: "smoke-test" } };
 
   const [events, count24h, count7d] = await Promise.all([
-    failureEventsCollection.find({}).sort({ createdAt: -1 }).limit(safeLimit).toArray(),
-    failureEventsCollection.countDocuments({ createdAt: { $gte: since24h } }),
-    failureEventsCollection.countDocuments({ createdAt: { $gte: since7d } }),
+    failureEventsCollection.find(visibleFailures).sort({ createdAt: -1 }).limit(safeLimit).toArray(),
+    failureEventsCollection.countDocuments({ ...visibleFailures, createdAt: { $gte: since24h } }),
+    failureEventsCollection.countDocuments({ ...visibleFailures, createdAt: { $gte: since7d } }),
   ]);
 
   return {
