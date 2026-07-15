@@ -23,7 +23,7 @@ const WhatsAppButton = () => {
         Fale conosco
       </span>
 
-      <span className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-30" />
+      <span className="absolute inset-0 rounded-full bg-[#25D366] animate-ping-triple opacity-30" />
     </a>
   );
 };

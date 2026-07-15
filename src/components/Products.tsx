@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ArrowRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProductImageFrame from "@/components/ProductImageFrame";
 import { catalogCategoryGroups, CatalogCategory } from "@/data/categories";
@@ -40,8 +41,8 @@ const ProductCard = ({
       </p>
 
       <div className="mt-5 flex items-center text-muted-foreground group-hover:text-lime-dark font-semibold transition-colors duration-300">
-        <span className="text-sm">Ver catálogo detalhado</span>
-        <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1">→</span>
+        <span className="text-sm">Ver peças da categoria</span>
+        <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
       </div>
     </div>
   </a>
@@ -71,10 +72,12 @@ const Products = () => {
     }, {});
   }, [products]);
 
-  const renderCategoryGrid = (categories: CatalogCategory[], columnsClass: string) => (
-    <div className={columnsClass}>
+  // Flex com justify-center: linhas incompletas (ex.: 5 cards em 3 colunas) ficam centradas
+  // em vez de deixar um vão à direita.
+  const renderCategoryGrid = (categories: CatalogCategory[], itemClass: string) => (
+    <div className="flex flex-wrap justify-center gap-6">
       {categories.map((category, index) => (
-        <div key={category.id} className="relative">
+        <div key={category.id} className={`relative w-full ${itemClass}`}>
           <ProductCard
             category={category}
             image={getCategoryThumbnail(category.id, products)}
@@ -91,11 +94,11 @@ const Products = () => {
   );
 
   return (
-    <section id="produtos" className="section-padding bg-muted/30">
+    <section id="produtos" className="section-padding bg-muted">
       <div className="section-container">
         <div className="text-center mb-16">
           <span className="inline-block text-lime-dark font-semibold text-sm uppercase tracking-wider mb-4 animate-fade-in">
-            Nosso Catálogo
+            O que fabricamos
           </span>
           <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4 font-heading tracking-tight">
             Nossos <span className="text-lime-dark">Produtos</span>
@@ -127,15 +130,17 @@ const Products = () => {
           <TabsContent value="tanques" className="mt-0 focus-visible:outline-none focus-visible:ring-0 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {renderCategoryGrid(
               catalogCategoryGroups.tanques,
-              "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8",
+              "md:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1rem)]",
             )}
           </TabsContent>
 
           <TabsContent value="reservatorios" className="mt-0 focus-visible:outline-none focus-visible:ring-0 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {renderCategoryGrid(
-              catalogCategoryGroups.reservatorios,
-              "grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 max-w-4xl mx-auto",
-            )}
+            <div className="mx-auto max-w-4xl">
+              {renderCategoryGrid(
+                catalogCategoryGroups.reservatorios,
+                "md:w-[calc(50%-0.75rem)]",
+              )}
+            </div>
           </TabsContent>
         </Tabs>
 
@@ -145,7 +150,7 @@ const Products = () => {
             className="inline-flex items-center justify-center gap-2 bg-secondary text-secondary-foreground font-semibold px-8 py-4 rounded-lg hover:bg-secondary/90 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
           >
             Abrir catálogo completo
-            <span className="ml-1">→</span>
+            <ArrowRight className="h-4 w-4" />
           </a>
         </div>
       </div>

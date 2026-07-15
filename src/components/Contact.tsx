@@ -1,9 +1,23 @@
 import { useState, useEffect, useRef } from "react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 
+const toMinutes = (hours: number, minutes: number) => hours * 60 + minutes;
+
+const formatTime = (totalMinutes: number) =>
+  `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
+
+// Fonte única de horários: alimenta tanto os textos exibidos quanto o status "aberto agora".
+const businessHours = {
+  morning: { start: toMinutes(7, 30), end: toMinutes(11, 30) },
+  afternoon: { start: toMinutes(12, 42), end: toMinutes(17, 0), endFriday: toMinutes(16, 0) },
+};
+
+const formatDayRange = (afternoonEnd: number) =>
+  `${formatTime(businessHours.morning.start)} às ${formatTime(businessHours.morning.end)} | ${formatTime(businessHours.afternoon.start)} às ${formatTime(afternoonEnd)}`;
+
 const horariosAgrupados = [
-  { dia: "Segunda a quinta", horas: "07:30 às 11:30 | 12:42 às 17:00" },
-  { dia: "Sexta-feira", horas: "07:30 às 11:30 | 12:42 às 16:00" },
+  { dia: "Segunda a quinta", horas: formatDayRange(businessHours.afternoon.end) },
+  { dia: "Sexta-feira", horas: formatDayRange(businessHours.afternoon.endFriday) },
   { dia: "Sábado e domingo", horas: "Fechado" },
 ];
 
@@ -66,9 +80,10 @@ const Contact = () => {
       let open = false;
 
       if (day >= 1 && day <= 5) {
-        const isMorningOpen = timeInMinutes >= 450 && timeInMinutes < 690;
-        const afternoonClose = day === 5 ? 960 : 1020;
-        const isAfternoonOpen = timeInMinutes >= 762 && timeInMinutes < afternoonClose;
+        const { morning, afternoon } = businessHours;
+        const isMorningOpen = timeInMinutes >= morning.start && timeInMinutes < morning.end;
+        const afternoonClose = day === 5 ? afternoon.endFriday : afternoon.end;
+        const isAfternoonOpen = timeInMinutes >= afternoon.start && timeInMinutes < afternoonClose;
 
         open = isMorningOpen || isAfternoonOpen;
       }
@@ -82,7 +97,7 @@ const Contact = () => {
   }, []);
 
   return (
-    <section id="contato" className="section-padding bg-muted/30">
+    <section id="contato" className="section-padding bg-muted">
       <div className="section-container">
         <div className="text-center mb-16">
           <span className="inline-block text-lime-dark font-semibold text-sm uppercase tracking-wider mb-4">

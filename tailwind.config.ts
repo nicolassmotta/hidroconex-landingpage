@@ -65,16 +65,6 @@ export default {
           DEFAULT: "hsl(var(--steel))",
           light: "hsl(var(--steel-light))",
         },
-        sidebar: {
-          DEFAULT: "hsl(var(--sidebar-background))",
-          foreground: "hsl(var(--sidebar-foreground))",
-          primary: "hsl(var(--sidebar-primary))",
-          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
-          accent: "hsl(var(--sidebar-accent))",
-          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
-          border: "hsl(var(--sidebar-border))",
-          ring: "hsl(var(--sidebar-ring))",
-        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -124,6 +114,8 @@ export default {
         "scale-in": "scale-in 0.4s ease-out both",
         float: "float 3s ease-in-out infinite",
         pulse: "pulse 2s ease-in-out infinite",
+        // Pinga 3 vezes e some (forwards mantém opacity 0 do último keyframe).
+        "ping-triple": "ping 1.4s cubic-bezier(0, 0, 0.2, 1) 3 forwards",
       },
     },
   },

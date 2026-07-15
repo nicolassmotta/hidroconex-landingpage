@@ -8,7 +8,7 @@ const Footer = () => {
       <div className="section-container py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
           <div className="lg:col-span-2">
-            <BrandLogo className="mb-5 bg-white" imageClassName="h-12" />
+            <BrandLogo variant="light" className="mb-5" />
             <p className="text-secondary-foreground/70 max-w-md mb-6">
               Fabricante especializada em conexões e componentes de aço para o
               setor industrial. Qualidade e precisão para a sua operação.

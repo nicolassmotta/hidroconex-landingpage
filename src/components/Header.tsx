@@ -16,6 +16,24 @@ const Header = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [isMobileMenuOpen]);
+
   const sectionHref = (hash: string) => (isHome ? hash : `/${hash}`);
 
   const navItems = [
@@ -35,17 +53,17 @@ const Header = () => {
           : "bg-secondary/15 backdrop-blur-[2px]"
       }`}
     >
-      <div className="section-container">
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-secondary/40 backdrop-blur-sm md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <div className="section-container relative">
         <div className="flex items-center justify-between h-20">
           <a href="/#inicio" className="flex items-center" aria-label="Hidroconex">
-            <BrandLogo
-              className={
-                isScrolled || isMobileMenuOpen
-                  ? "bg-white shadow-sm"
-                  : "bg-white/95 shadow-md shadow-black/15"
-              }
-              imageClassName="h-10 sm:h-11"
-            />
+            <BrandLogo variant={isScrolled || isMobileMenuOpen ? "dark" : "light"} />
           </a>
 
           <nav className="hidden md:flex items-center gap-7">

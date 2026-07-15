@@ -1,4 +1,4 @@
-import heroImage from "@/assets/AI/hero-industrial.jpg";
+import heroImage from "@/assets/AI/hero-industrial.webp";
 
 const heroStats = [
   { value: "14 anos", label: "de fabricação industrial" },
@@ -12,17 +12,21 @@ const Hero = () => {
       id="inicio"
       className="relative min-h-[92vh] flex items-center overflow-hidden bg-secondary"
     >
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${heroImage})` }}
-      >
+      <div className="absolute inset-0">
+        <img
+          src={heroImage}
+          alt=""
+          fetchPriority="high"
+          decoding="async"
+          className="h-full w-full object-cover object-center"
+        />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(210_50%_12%/.94),hsl(210_50%_16%/.78)_48%,hsl(210_50%_12%/.34))]" />
       </div>
 
       <div className="relative z-10 section-container py-32 md:py-40">
         <div className="max-w-5xl">
           <p className="mb-7 border-l-2 border-primary pl-4 text-xs font-semibold uppercase tracking-[0.28em] text-primary">
-            Hidroconex Indústria e Comércio
+            Indústria metalúrgica em aço carbono
           </p>
 
           <h1 className="max-w-4xl text-4xl md:text-6xl lg:text-7xl font-bold text-secondary-foreground leading-[1.02] mb-7">

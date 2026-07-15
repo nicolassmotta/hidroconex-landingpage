@@ -1,5 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600&display=swap');
-
+/* Fontes carregadas via <link> no index.html (aproveita o preconnect e não bloqueia o parse do CSS). */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -61,54 +60,6 @@
     --shadow-xl: 0 20px 25px -5px hsl(210 50% 18% / 0.15), 0 8px 10px -6px hsl(210 50% 18% / 0.1);
     --shadow-card: 0 1px 0 hsl(210 50% 18% / 0.08), 0 10px 24px hsl(210 40% 18% / 0.06);
     --shadow-card-hover: 0 1px 0 hsl(210 50% 18% / 0.12), 0 14px 30px hsl(210 40% 18% / 0.1);
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 210 50% 8%;
-    --foreground: 210 20% 98%;
-
-    --card: 210 50% 12%;
-    --card-foreground: 210 20% 98%;
-
-    --popover: 210 50% 12%;
-    --popover-foreground: 210 20% 98%;
-
-    --primary: 84 81% 44%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 210 40% 25%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 210 40% 15%;
-    --muted-foreground: 210 20% 65%;
-
-    --accent: 84 50% 20%;
-    --accent-foreground: 84 70% 70%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 210 40% 20%;
-    --input: 210 40% 20%;
-    --ring: 84 81% 44%;
-
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
@@ -157,8 +108,13 @@
   }
 
   .btn-hero {
-    @apply bg-primary text-primary-foreground font-semibold px-8 py-4 rounded-sm shadow-md transition-colors duration-200 hover:bg-lime-light;
+    @apply text-primary-foreground font-semibold px-8 py-4 rounded-sm shadow-md transition-[filter,box-shadow] duration-200 hover:shadow-lg;
     background: var(--gradient-primary);
+  }
+
+  /* O fundo é um gradiente (background-image), então hover:bg-* não teria efeito visível. */
+  .btn-hero:hover {
+    filter: brightness(1.1);
   }
 
   .btn-secondary-hero {
