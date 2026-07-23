@@ -15,7 +15,7 @@ const Hero = () => {
       <div className="absolute inset-0">
         <img
           src={heroImage}
-          alt=""
+          alt="Luvas de aço carbono e conexões industriais Hidroconex — fabricação própria"
           fetchPriority="high"
           decoding="async"
           className="h-full w-full object-cover object-center"
@@ -26,17 +26,17 @@ const Hero = () => {
       <div className="relative z-10 section-container py-32 md:py-40">
         <div className="max-w-5xl">
           <p className="mb-7 border-l-2 border-primary pl-4 text-xs font-semibold uppercase tracking-[0.28em] text-primary">
-            Indústria metalúrgica em aço carbono
+            Fabricante de luvas e conexões em aço carbono
           </p>
 
           <h1 className="max-w-4xl text-4xl md:text-6xl lg:text-7xl font-bold text-secondary-foreground leading-[1.02] mb-7">
-            Conexões e componentes de aço para tanques e reservatórios.
+            Luvas de aço carbono, conexões e componentes para tanques e reservatórios.
           </h1>
 
           <p className="max-w-2xl text-lg md:text-xl text-secondary-foreground/80 mb-10 leading-relaxed">
-            Fabricação própria em São José do Rio Preto, com peças seriadas e sob
-            medida para operação industrial, armazenamento e interligação de
-            sistemas.
+            Fabricação própria de luvas, niples, juntas, plugs e filtros em aço
+            carbono. Peças seriadas e sob medida para tanques subterrâneos,
+            reservatórios metálicos e sistemas industriais.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">

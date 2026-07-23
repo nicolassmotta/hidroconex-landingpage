@@ -15,15 +15,15 @@ const About = () => {
               Sobre Nós
             </span>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-6">
-              Tradição e <span className="text-primary">inovação</span> na
-              fabricação industrial
+              Tradição e <span className="text-primary">inovação</span> em
+              luvas de aço carbono e conexões industriais
             </h2>
 
             <div className="space-y-4 text-muted-foreground leading-relaxed">
               <p>
                 A <strong className="text-foreground">Hidroconex Indústria e Comércio Ltda</strong> é
                 uma fabricante estabelecida na região de São José do Rio Preto há 14 anos,
-                especializada na produção de conexões e componentes de aço.
+                especializada na produção de luvas de aço carbono, conexões e componentes industriais.
               </p>
               <p>
                 Com uma equipe qualificada e equipamentos modernos, desenvolvemos soluções

@@ -104,8 +104,9 @@ const Products = () => {
             Nossos <span className="text-lime-dark">Produtos</span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto text-lg leading-relaxed">
-            Peças de alta precisão técnica para tanques subterrâneos,
-            reservatórios metálicos e aplicações industriais sob medida.
+            Luvas de aço carbono, conexões, niples, juntas, plugs e filtros. Peças técnicas de
+            alta precisão para tanques subterrâneos, reservatórios metálicos e aplicações
+            industriais sob medida.
           </p>
         </div>
 

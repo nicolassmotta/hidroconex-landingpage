@@ -10,8 +10,9 @@ const Footer = () => {
           <div className="lg:col-span-2">
             <BrandLogo variant="light" className="mb-5" />
             <p className="text-secondary-foreground/70 max-w-md mb-6">
-              Fabricante especializada em conexões e componentes de aço para o
-              setor industrial. Qualidade e precisão para a sua operação.
+              Fabricante de luvas de aço carbono, conexões, niples, juntas, plugs
+              e filtros para o setor industrial. Qualidade e precisão para sua
+              operação.
             </p>
             <div className="flex gap-4">
               <a
