@@ -12,10 +12,15 @@ dist
 dist-ssr
 test-results
 playwright-report
+coverage
 *.local
+*.tsbuildinfo
 server/data/catalog.json
 public/uploads/products/*
 !public/uploads/products/.gitkeep
+
+# AI agent state
+.agents/
 
 # Editor directories and files
 .claude/
